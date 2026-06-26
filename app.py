@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -11,16 +11,16 @@ st.set_page_config(page_title="AI Research Agent", page_icon="🤖", layout="cen
 
 st.title("AI Research Agent")
 st.caption(
-    "One command → search the web → run analysis → email a summary. "
-    "Built with LangChain, GPT-4o, SerpAPI, and SendGrid."
+    "One command -> search the web -> run analysis -> email a summary. "
+    "Built with LangChain, Gemini 2.5 Flash, SerpAPI, and Resend."
 )
 
 REQUIRED_KEYS = [
-    "OPENAI_API_KEY",
+    "GOOGLE_API_KEY",
     "SERPAPI_API_KEY",
-    "SENDGRID_API_KEY",
-    "SENDGRID_FROM_EMAIL",
-    "SENDGRID_TO_EMAIL",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "RESEND_TO_EMAIL",
 ]
 missing = [key for key in REQUIRED_KEYS if not os.getenv(key)]
 if missing:

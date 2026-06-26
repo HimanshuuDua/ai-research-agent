@@ -4,18 +4,18 @@ An AI agent that takes a single text command — like *"Research the latest tren
 
 ## What it demonstrates
 
-- **Multi-step reasoning** with LangChain + GPT-4o
-- **Tool use**: web search (SerpAPI), Python REPL, email (SendGrid)
+- **Multi-step reasoning** with LangChain + Gemini 2.5 Flash
+- **Tool use**: web search (SerpAPI), Python REPL, email (Resend)
 - **Chat UI** in Streamlit (~50 lines, no React needed)
 
-## Tech stack
+## Tech stack (free-tier friendly)
 
-| Layer | Technology |
-|-------|------------|
-| Agent brain | LangChain, OpenAI GPT-4o |
-| Tools | SerpAPI, Python REPL, SendGrid |
-| Chat UI | Streamlit |
-| Backend | Python |
+| Layer | Technology | Free tier |
+|-------|------------|-----------|
+| Agent brain | LangChain, Gemini 2.5 Flash | Free quota via Google AI Studio |
+| Web search | SerpAPI | 250 searches/month |
+| Email | Resend | 3,000 emails/month (permanent) |
+| Chat UI | Streamlit | Free |
 
 ## Quick start
 
@@ -37,9 +37,11 @@ copy .env.example .env
 
 Fill in `.env`:
 
-- `OPENAI_API_KEY` — OpenAI
-- `SERPAPI_API_KEY` — SerpAPI
-- `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_TO_EMAIL` — SendGrid
+- `GOOGLE_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey) (Gemini 2.5 Flash)
+- `SERPAPI_API_KEY` — [SerpAPI](https://serpapi.com/) (250 free searches/month)
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_TO_EMAIL` — [Resend](https://resend.com/) (3,000 free emails/month)
+
+For Resend testing, you can use `onboarding@resend.dev` as the from address until you verify your own domain.
 
 ### 3. Run the app
 
@@ -49,7 +51,7 @@ streamlit run app.py
 
 ## Build order (recommended)
 
-Do not wire all three tools at once. Use the sidebar mode selector:
+Use the sidebar mode selector:
 
 1. **Web search only** — verify SerpAPI + LangChain agent works
 2. **Search + Python REPL** — add code execution
@@ -61,20 +63,9 @@ Do not wire all three tools at once. Use the sidebar mode selector:
 Research the latest trends in electric vehicles, run a quick analysis, and email me a summary
 ```
 
-## Project structure
+## Why Resend instead of SendGrid?
 
-```
-ai-research-agent/
-├── app.py
-├── agent/
-│   ├── agent.py
-│   └── tools/
-│       ├── web_search.py
-│       ├── python_repl.py
-│       └── email.py
-├── requirements.txt
-└── .env.example
-```
+SendGrid removed its permanent free plan in 2025 (60-day trial only). Resend offers a **permanent** free tier: 3,000 emails/month, 100/day.
 
 ## License
 

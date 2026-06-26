@@ -4,7 +4,7 @@ from typing import Literal
 from dotenv import load_dotenv
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agent.tools import get_email_tool, get_python_repl_tool, get_web_search_tool
 
@@ -41,7 +41,11 @@ def _build_tools(mode: ToolMode):
 
 def create_agent(mode: ToolMode = "full") -> AgentExecutor:
     """Build the agent. Start with mode='search_only', then layer in tools."""
-    llm = ChatOpenAI(model="gpt-4o", temperature=0, api_key=os.environ["OPENAI_API_KEY"])
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0,
+        google_api_key=os.environ["GOOGLE_API_KEY"],
+    )
     tools = _build_tools(mode)
     agent = create_tool_calling_agent(llm, tools, PROMPT)
     return AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)

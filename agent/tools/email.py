@@ -1,27 +1,24 @@
 import os
 
+import resend
 from langchain_core.tools import tool
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 
 
 @tool
 def send_email(subject: str, body: str) -> str:
     """Send an email summary to the user. Use this last to deliver final results."""
-    message = Mail(
-        from_email=os.environ["SENDGRID_FROM_EMAIL"],
-        to_emails=os.environ["SENDGRID_TO_EMAIL"],
-        subject=subject,
-        plain_text_content=body,
+    resend.api_key = os.environ["RESEND_API_KEY"]
+
+    response = resend.Emails.send(
+        {
+            "from": os.environ["RESEND_FROM_EMAIL"],
+            "to": [os.environ["RESEND_TO_EMAIL"]],
+            "subject": subject,
+            "text": body,
+        }
     )
 
-    client = SendGridAPIClient(os.environ["SENDGRID_API_KEY"])
-    response = client.send(message)
-
-    if response.status_code in (200, 201, 202):
-        return f"Email sent successfully to {os.environ['SENDGRID_TO_EMAIL']}."
-
-    return f"Email failed with status {response.status_code}."
+    return f"Email sent successfully to {os.environ['RESEND_TO_EMAIL']} (id: {response['id']})."
 
 
 def get_email_tool():
