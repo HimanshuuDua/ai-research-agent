@@ -1,4 +1,4 @@
-﻿# AI Research Agent
+# AI Research Agent
 
 An AI agent that takes a single text command — like *"Research the latest trends in electric vehicles, run a quick analysis, and email me a summary"* — and executes all three steps automatically.
 
@@ -22,7 +22,7 @@ An AI agent that takes a single text command — like *"Research the latest tren
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/111205255/ai-research-agent.git
+git clone https://github.com/HimanshuuDua/ai-research-agent.git
 cd ai-research-agent
 python -m venv .venv
 .venv\Scripts\activate
