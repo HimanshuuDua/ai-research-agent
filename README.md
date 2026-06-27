@@ -85,7 +85,25 @@ With the test sender, Resend only delivers to the email on your Resend account.
 
 ## Deploy (public demo)
 
-### Streamlit Community Cloud (easiest)
+### Live site (Vercel)
+
+**Production URL:** https://ai-research-agent-ecru-zeta.vercel.app
+
+The Vercel deployment uses FastAPI (`api/index.py`) + a chat UI. Streamlit remains for local dev.
+
+Set these in [Vercel → Project → Settings → Environment Variables](https://vercel.com/himanshuudua786-ops-projects/ai-research-agent/settings/environment-variables):
+
+- `GOOGLE_API_KEY`
+- `SERPAPI_API_KEY`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `RESEND_TO_EMAIL`
+
+Redeploy after changing env vars: `vercel deploy --prod`
+
+**Note:** Vercel free tier has a ~10s function timeout. Use **search only** mode for quick tests; full pipeline may need Pro (60s) or run locally via Streamlit.
+
+### Streamlit Community Cloud (alternative)
 
 1. Push this repo to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
