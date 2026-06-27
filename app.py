@@ -18,15 +18,24 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     .block-container { padding-top: 1.5rem; max-width: 960px; }
-    .hero { color: #64748b; margin-bottom: 1.5rem; }
+    .hero { color: #64748b; margin-bottom: 1.5rem; animation: fadeIn 0.6s ease; }
     .step-card {
         border: 1px solid #e2e8f0;
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 0.75rem 1rem;
         margin-bottom: 0.75rem;
         background: #f8fafc;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+    .step-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    div[data-testid="stStatusWidget"] { border-radius: 12px; }
     </style>
     """,
     unsafe_allow_html=True,
