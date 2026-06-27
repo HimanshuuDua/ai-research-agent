@@ -3,6 +3,7 @@ import sys
 import traceback
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,6 +15,7 @@ from agent.config import get_missing_env_keys  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
+PUBLIC_DIR = os.path.join(ROOT, "public")
 
 
 class ChatRequest(BaseModel):
@@ -23,6 +25,11 @@ class ChatRequest(BaseModel):
 
 
 @app.get("/")
+def home():
+    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+
+
+@app.get("/api/health")
 def health():
     missing = get_missing_env_keys()
     if missing:
@@ -37,7 +44,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/")
+@app.post("/api/chat")
 def chat(body: ChatRequest):
     missing = get_missing_env_keys()
     if missing:
