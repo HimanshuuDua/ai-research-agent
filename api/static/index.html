@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Research Agent</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --user: #1e3a5f;
+      --assistant: #1e293b;
+      --success: #22c55e;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 { font-size: 1.35rem; font-weight: 700; }
+    header p { color: var(--muted); margin-top: 0.35rem; font-size: 0.95rem; }
+    .layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      min-height: 0;
+    }
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 1rem;
+      background: var(--panel);
+    }
+    aside label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+    aside select, aside button {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+    aside button {
+      cursor: pointer;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    aside button:hover { background: var(--bg); }
+    aside .examples button { text-align: left; margin-bottom: 0.5rem; }
+    main {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user { align-self: flex-end; background: var(--user); }
+    .msg.assistant { align-self: flex-start; background: var(--assistant); border: 1px solid var(--border); }
+    .msg.system { align-self: center; color: var(--muted); font-size: 0.85rem; background: transparent; }
+    .steps { margin-top: 0.75rem; }
+    details {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+    }
+    summary { cursor: pointer; color: var(--muted); }
+    pre {
+      margin-top: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .meta { font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; }
+    form {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 0.75rem;
+      background: var(--panel);
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    input[type="text"]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    button[type="submit"] {
+      padding: 0.75rem 1.25rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button[type="submit"]:hover { background: var(--accent-hover); }
+    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { padding: 0.5rem 1.25rem; font-size: 0.85rem; color: var(--muted); }
+    .status.error { color: var(--error); }
+    .status.ok { color: var(--success); }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Research Agent</h1>
+    <p>One command → search the web → analyze → email a summary</p>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <label for="mode">Agent mode</label>
+      <select id="mode">
+        <option value="search_only">1. Web search only</option>
+        <option value="search_and_code">2. Search + Python</option>
+        <option value="full" selected>3. Full pipeline (+ email)</option>
+      </select>
+
+      <div class="examples">
+        <label>Examples</label>
+        <button type="button" data-prompt="What are the top 3 electric vehicle trends in 2025?">EV trends (search)</button>
+        <button type="button" data-prompt="Search EV market data and use Python to summarize key stats.">Search + analyze</button>
+        <button type="button" data-prompt="Research the latest trends in electric vehicles, run a quick analysis, and email me a summary">Full pipeline</button>
+      </div>
+
+      <button type="button" id="clear">Clear chat</button>
+    </aside>
+
+    <main>
+      <div id="status" class="status">Checking API…</div>
+      <div id="chat"></div>
+      <form id="form">
+        <input type="text" id="prompt" placeholder="Research EV trends, analyze them, and email me a summary" autocomplete="off" />
+        <button type="submit" id="send">Send</button>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const promptInput = document.getElementById("prompt");
+    const modeSelect = document.getElementById("mode");
+    const statusEl = document.getElementById("status");
+    const sendBtn = document.getElementById("send");
+    let history = [];
+
+    function addMessage(role, content, extra = {}) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.textContent = content;
+
+      if (extra.steps && extra.steps.length) {
+        const stepsWrap = document.createElement("div");
+        stepsWrap.className = "steps";
+        extra.steps.forEach((step) => {
+          const details = document.createElement("details");
+          details.innerHTML = `<summary>🔧 ${step.tool}</summary><pre>${escapeHtml(step.input)}\n\n→ ${escapeHtml(step.output.slice(0, 800))}</pre>`;
+          stepsWrap.appendChild(details);
+        });
+        div.appendChild(stepsWrap);
+      }
+
+      if (extra.model_used) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = `Model: ${extra.model_used}`;
+        div.appendChild(meta);
+      }
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    async function checkHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        if (data.status === "ok") {
+          statusEl.textContent = "API ready";
+          statusEl.className = "status ok";
+        } else {
+          statusEl.textContent = `Missing env vars: ${data.missing.join(", ")}`;
+          statusEl.className = "status error";
+        }
+      } catch {
+        statusEl.textContent = "Could not reach API";
+        statusEl.className = "status error";
+      }
+    }
+
+    async function sendPrompt(text) {
+      if (!text.trim()) return;
+      addMessage("user", text);
+      history.push({ role: "user", content: text });
+      sendBtn.disabled = true;
+      statusEl.textContent = "Agent is working…";
+      statusEl.className = "status";
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: text,
+            mode: modeSelect.value,
+            history: history.slice(0, -1),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.hint ? `${data.error}\n${data.hint}` : data.error);
+        }
+        const output = data.output || "Task completed.";
+        addMessage("assistant", output, { steps: data.steps, model_used: data.model_used });
+        history.push({ role: "assistant", content: output });
+        statusEl.textContent = "Done";
+        statusEl.className = "status ok";
+      } catch (err) {
+        addMessage("system", err.message || "Request failed");
+        statusEl.textContent = "Error";
+        statusEl.className = "status error";
+      } finally {
+        sendBtn.disabled = false;
+        promptInput.value = "";
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      sendPrompt(promptInput.value);
+    });
+
+    document.querySelectorAll("[data-prompt]").forEach((btn) => {
+      btn.addEventListener("click", () => sendPrompt(btn.dataset.prompt));
+    });
+
+    document.getElementById("clear").addEventListener("click", () => {
+      chat.innerHTML = "";
+      history = [];
+      statusEl.textContent = "Chat cleared";
+      statusEl.className = "status";
+    });
+
+    checkHealth();
+  </script>
+</body>
+</html>

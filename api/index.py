@@ -15,7 +15,7 @@ from agent.config import get_missing_env_keys  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
-PUBLIC_DIR = os.path.join(ROOT, "public")
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
 class ChatRequest(BaseModel):
@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 @app.get("/api/health")
