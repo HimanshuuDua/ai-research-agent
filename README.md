@@ -4,17 +4,19 @@ An AI agent that takes a single text command — like *"Research the latest tren
 
 ## What it demonstrates
 
-- **Multi-step reasoning** with LangChain + Gemini 2.5 Flash
-- **Tool use**: web search (SerpAPI), Python REPL, email (Resend)
-- **Chat UI** in Streamlit (~50 lines, no React needed)
+- **Multi-step reasoning** with LangChain + Gemini
+- **Tool use**: web search (SerpAPI), sandboxed Python, email (Resend)
+- **Chat UI** in Streamlit with visible agent steps
+- **Model fallback** when Gemini free-tier quota is hit
 
 ## Tech stack (free-tier friendly)
 
 | Layer | Technology | Free tier |
 |-------|------------|-----------|
 | Agent brain | LangChain, Gemini 2.5 Flash | Free quota via Google AI Studio |
+| Fallback model | Gemini 2.5 Flash Lite | Separate free quota |
 | Web search | SerpAPI | 250 searches/month |
-| Email | Resend | 3,000 emails/month (permanent) |
+| Email | Resend | 3,000 emails/month |
 | Chat UI | Streamlit | Free |
 
 ## Quick start
@@ -37,25 +39,75 @@ copy .env.example .env
 
 Fill in `.env`:
 
-- `GOOGLE_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey) (Gemini 2.5 Flash)
-- `SERPAPI_API_KEY` — [SerpAPI](https://serpapi.com/) (250 free searches/month)
-- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_TO_EMAIL` — [Resend](https://resend.com/) (3,000 free emails/month)
+- `GOOGLE_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey)
+- `SERPAPI_API_KEY` — [SerpAPI](https://serpapi.com/)
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_TO_EMAIL` — [Resend](https://resend.com/)
 
-For Resend testing, you can use `onboarding@resend.dev` as the from address until you verify your own domain.
+Optional:
 
-### 3. Run the app
+- `GEMINI_MODEL` (default: `gemini-2.5-flash`)
+- `GEMINI_FALLBACK_MODEL` (default: `gemini-2.5-flash-lite`)
+
+### 3. Verify email (optional)
+
+```bash
+python send_test_email.py
+```
+
+### 4. Run the website
 
 ```bash
 streamlit run app.py
 ```
+
+Open **http://localhost:8501** — type a command, watch the agent work, see results.
 
 ## Build order (recommended)
 
 Use the sidebar mode selector:
 
 1. **Web search only** — verify SerpAPI + LangChain agent works
-2. **Search + Python REPL** — add code execution
+2. **Search + Python REPL** — add sandboxed code execution
 3. **Full pipeline** — add email delivery
+
+## Resend email setup
+
+**Testing (no domain needed):**
+
+```env
+RESEND_FROM_EMAIL=onboarding@resend.dev
+RESEND_TO_EMAIL=your-resend-account@gmail.com
+```
+
+With the test sender, Resend only delivers to the email on your Resend account.
+
+**Production:** verify your domain at [resend.com/domains](https://resend.com/domains), then use a `@yourdomain.com` from address.
+
+## Deploy (public demo)
+
+### Streamlit Community Cloud (easiest)
+
+1. Push this repo to GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Connect the repo and set secrets (`GOOGLE_API_KEY`, `SERPAPI_API_KEY`, `RESEND_*`)
+4. Main file: `app.py`
+
+### Docker
+
+```bash
+docker build -t ai-research-agent .
+docker run -p 8501:8501 --env-file .env ai-research-agent
+```
+
+## Development
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest -q
+```
+
+CI runs lint + tests on push via GitHub Actions.
 
 ## Example prompt
 
@@ -63,9 +115,18 @@ Use the sidebar mode selector:
 Research the latest trends in electric vehicles, run a quick analysis, and email me a summary
 ```
 
-## Why Resend instead of SendGrid?
+## Project structure
 
-SendGrid removed its permanent free plan in 2025 (60-day trial only). Resend offers a **permanent** free tier: 3,000 emails/month, 100/day.
+```
+agent/
+  agent.py          # LangChain agent + run_agent()
+  config.py         # env config
+  errors.py         # friendly error messages
+  llm.py            # Gemini client
+  tools/            # web search, python sandbox, email
+app.py              # Streamlit chat UI
+tests/              # unit tests
+```
 
 ## License
 
