@@ -27,3 +27,29 @@ jobs:
 
       - name: Test
         run: pytest -q
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+          playwright install chromium --with-deps
+
+      - name: Playwright E2E
+        env:
+          GOOGLE_API_KEY: ci-dummy-google-key
+          SERPAPI_API_KEY: ci-dummy-serp-key
+          RESEND_API_KEY: re_ci_dummy_key
+          RESEND_FROM_EMAIL: onboarding@resend.dev
+          RESEND_TO_EMAIL: test@example.com
+          RESEND_ACCOUNT_EMAIL: test@example.com
+        run: pytest tests/e2e -q

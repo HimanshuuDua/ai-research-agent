@@ -22,6 +22,9 @@ dependencies = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "e2e: browser end-to-end tests (Playwright)",
+]
 
 [tool.ruff]
 line-length = 100
