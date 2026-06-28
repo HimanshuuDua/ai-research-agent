@@ -241,12 +241,78 @@
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
     }
 
-    .email-hint {
-      font-size: 0.68rem;
-      color: var(--muted);
-      margin-top: 0.35rem;
-      line-height: 1.4;
+    .email-hint.email-warning {
+      color: #fbbf24;
+      border-left: 2px solid rgba(251, 191, 36, 0.5);
+      padding-left: 0.45rem;
     }
+
+    .email-hint.email-warning strong {
+      color: #fde68a;
+    }
+
+    .btn-upload {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .chat-doc-zone {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.35);
+    }
+
+    .chat-doc-zone .panel-title {
+      margin-bottom: 0.5rem;
+    }
+
+    .chat-doc-zone .email-hint {
+      margin-top: 0.45rem;
+      margin-bottom: 0;
+    }
+
+    .doc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin: 0;
+      padding: 0;
+    }
+
+    .doc-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.45rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.45);
+      font-size: 0.75rem;
+      color: #cbd5e1;
+    }
+
+    .doc-item span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .doc-item button {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.1rem 0.25rem;
+    }
+
+    .doc-item button:hover { color: #f87171; }
 
     .email-info strong { color: #cbd5e1; font-weight: 500; }
 
@@ -338,6 +404,69 @@
       flex-direction: column;
       min-height: 0;
       flex: 1;
+      position: relative;
+    }
+
+    .drop-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: rgba(7, 11, 20, 0.82);
+      border: 2px dashed rgba(59, 130, 246, 0.65);
+      border-radius: 14px;
+      margin: 0.35rem;
+      pointer-events: none;
+      animation: fadeUp 0.2s var(--ease);
+    }
+
+    main.drag-over .drop-overlay {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drop-overlay-inner {
+      text-align: center;
+      color: #cbd5e1;
+      padding: 1.5rem;
+    }
+
+    .drop-overlay-inner svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .drop-overlay-inner p {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+
+    .drop-overlay-inner span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .message-row.doc-upload .bubble {
+      border-color: rgba(59, 130, 246, 0.35);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .doc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .doc-badge svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
     }
 
     #chat {
@@ -387,6 +516,29 @@
 
     .empty-state p { font-size: 0.88rem; line-height: 1.5; margin-bottom: 1rem; }
 
+    .drop-hint {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      width: 100%;
+      max-width: 340px;
+      padding: 0.65rem 0.85rem;
+      margin-bottom: 1rem;
+      border-radius: 10px;
+      border: 1px dashed rgba(59, 130, 246, 0.35);
+      background: rgba(59, 130, 246, 0.06);
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+
+    .drop-hint svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
     .starter-chips {
       display: flex;
       flex-direction: column;
@@ -419,10 +571,8 @@
       flex-wrap: wrap;
       gap: 0.4rem;
       align-items: center;
-      border-top: 1px solid transparent;
+      border-top: 1px solid var(--border);
     }
-
-    .quick-prompts.visible { border-top-color: var(--border); }
 
     .quick-label {
       font-size: 0.68rem;
@@ -640,12 +790,73 @@
     }
 
     .composer {
-      padding: 1rem 1.1rem;
+      padding: 0.85rem 1.1rem 1rem;
       border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .composer-row {
       display: flex;
       gap: 0.65rem;
       align-items: center;
-      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .composer-attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .composer-attachments:empty {
+      display: none;
+    }
+
+    .pending-doc {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.55rem;
+      border-radius: 8px;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: rgba(59, 130, 246, 0.12);
+      font-size: 0.78rem;
+      color: #bfdbfe;
+      max-width: 100%;
+    }
+
+    .pending-doc svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .pending-doc span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pending-doc button {
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 0 0.15rem;
+    }
+
+    .pending-doc button:hover { color: #f87171; }
+
+    .bubble .user-text {
+      margin-top: 0.45rem;
+    }
+
+    .bubble .user-text:first-child {
+      margin-top: 0;
     }
 
     .input-wrap {
@@ -764,7 +975,7 @@
             rows="2"
             placeholder="you@example.com, teammate@company.com"
           ></textarea>
-          <p class="email-hint">Comma-separated. Saved in your browser. With test sender, only your Resend account email works until you verify a domain.</p>
+          <p class="email-hint" id="email-mode-hint">Comma-separated recipients. Saved in your browser.</p>
         </div>
 
         <div>
@@ -786,12 +997,24 @@
         <button type="button" class="btn btn-clear" id="clear">Clear conversation</button>
       </aside>
 
-      <main>
+      <main id="chat-main">
+        <div class="drop-overlay" id="drop-overlay" aria-hidden="true">
+          <div class="drop-overlay-inner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+            <p>Drop to attach</p>
+            <span>Then type what you want — summarize, cross-check, etc. — and click Send</span>
+          </div>
+        </div>
+
         <div id="chat">
           <div class="empty-state" id="empty">
             <div class="orb"></div>
             <h2>What should I research?</h2>
-            <p>Pick a starter below or type your own command.</p>
+            <p>Drag a document here, type what you want the AI to do, then click Send.</p>
+            <div class="drop-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Drag PDF, DOCX, or text here
+            </div>
             <div class="starter-chips" id="starter-chips"></div>
           </div>
         </div>
@@ -801,14 +1024,17 @@
         </div>
 
         <form class="composer" id="form">
-          <div class="input-wrap">
-            <input type="text" id="prompt" placeholder="Research EV trends, analyze them, and email me a summary" autocomplete="off" />
+          <div class="composer-attachments" id="composer-attachments"></div>
+          <div class="composer-row">
+            <div class="input-wrap">
+              <input type="text" id="prompt" placeholder="Research EV trends, analyze them, and email me a summary" autocomplete="off" />
+            </div>
+            <button type="submit" class="send-btn" id="send" aria-label="Send message">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
+            </button>
           </div>
-          <button type="submit" class="send-btn" id="send" aria-label="Send message">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14M13 6l6 6-6 6"/>
-            </svg>
-          </button>
         </form>
       </main>
     </div>
@@ -816,6 +1042,7 @@
 
   <script>
     const chat = document.getElementById("chat");
+    const chatMain = document.getElementById("chat-main");
     const empty = document.getElementById("empty");
     const form = document.getElementById("form");
     const promptInput = document.getElementById("prompt");
@@ -826,7 +1053,11 @@
     const emailRecipientsInput = document.getElementById("email-recipients");
     const starterChips = document.getElementById("starter-chips");
     const quickPrompts = document.getElementById("quick-prompts");
+    const composerAttachments = document.getElementById("composer-attachments");
+    const emailModeHint = document.getElementById("email-mode-hint");
     const STORAGE_KEY = "ai-agent-email-recipients";
+    const DEFAULT_PLACEHOLDER = "Research EV trends, analyze them, and email me a summary";
+    const DOC_PLACEHOLDER = "What should I do with this document? e.g. Summarize it, cross-check with web…";
 
     const STARTER_PROMPTS = [
       { label: "Research EV trends in 2025", prompt: "What are the top 3 electric vehicle trends in 2025?", mode: "search_only" },
@@ -836,6 +1067,7 @@
     ];
 
     const QUICK_PROMPTS = [
+      { label: "Cross-check with web", prompt: "Cross-check the document summary against current web sources. Highlight matches and contradictions.", mode: "search_only", needsDoc: true },
       { label: "Email summary", prompt: "Email me a summary of what we discussed.", mode: "full" },
       { label: "Go deeper", prompt: "Dig deeper into this topic with more sources.", mode: null },
       { label: "New topic", prompt: "Research renewable energy investment trends in 2025.", mode: "search_only" },
@@ -849,15 +1081,184 @@
       web_search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
       python_repl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
       send_email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>',
+      read_document: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
       default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
     };
+
+    let uploadedDocuments = [];
+    let pendingDocuments = [];
+
+    const SUPPORTED_EXTENSIONS = [
+      ".pdf", ".docx", ".txt", ".md", ".markdown",
+      ".csv", ".json", ".html", ".htm", ".rtf",
+    ];
 
     function getEmailRecipients() {
       return emailRecipientsInput.value.trim();
     }
 
+    function isSupportedFile(file) {
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".doc")) return false;
+      return SUPPORTED_EXTENSIONS.some((ext) => name.endsWith(ext));
+    }
+
     function saveEmailRecipients() {
       localStorage.setItem(STORAGE_KEY, emailRecipientsInput.value.trim());
+    }
+
+    async function uploadDocument(file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(parseError(data));
+
+      return {
+        filename: data.filename,
+        text: data.text,
+        char_count: data.char_count,
+        truncated: data.truncated,
+        format: data.format,
+      };
+    }
+
+    function updateComposerPlaceholder() {
+      promptInput.placeholder = pendingDocuments.length ? DOC_PLACEHOLDER : DEFAULT_PLACEHOLDER;
+    }
+
+    function mergeDocument(documents, doc) {
+      const merged = [...documents];
+      const existingIdx = merged.findIndex((item) => item.filename === doc.filename);
+      if (existingIdx >= 0) merged[existingIdx] = doc;
+      else merged.push(doc);
+      return merged;
+    }
+
+    function renderComposerAttachments() {
+      composerAttachments.innerHTML = "";
+      pendingDocuments.forEach((doc, index) => {
+        const chip = document.createElement("div");
+        chip.className = "pending-doc";
+        chip.innerHTML = `
+          ${ICONS.read_document}
+          <span title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
+        `;
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.setAttribute("aria-label", "Remove attachment");
+        removeBtn.textContent = "×";
+        removeBtn.addEventListener("click", () => {
+          pendingDocuments.splice(index, 1);
+          renderComposerAttachments();
+          updateComposerPlaceholder();
+        });
+        chip.appendChild(removeBtn);
+        composerAttachments.appendChild(chip);
+      });
+      updateComposerPlaceholder();
+    }
+
+    function documentsForRequest(extra = []) {
+      let docs = [...uploadedDocuments];
+      extra.forEach((doc) => {
+        docs = mergeDocument(docs, doc);
+      });
+      return docs;
+    }
+
+    function addUserMessage(text, attachments = []) {
+      hideEmpty();
+
+      const row = document.createElement("div");
+      row.className = "message-row user";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.innerHTML = ICONS.user;
+      avatar.setAttribute("aria-hidden", "true");
+      row.appendChild(avatar);
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+
+      attachments.forEach((doc) => {
+        const badge = document.createElement("div");
+        badge.className = "doc-badge";
+        badge.innerHTML = `${ICONS.read_document} Uploaded <strong>${escapeHtml(doc.filename)}</strong>`;
+        bubble.appendChild(badge);
+      });
+
+      if (text) {
+        const textEl = document.createElement("div");
+        textEl.className = "user-text";
+        textEl.textContent = text;
+        bubble.appendChild(textEl);
+      }
+
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function processDroppedFiles(fileList) {
+      const files = Array.from(fileList).filter(isSupportedFile);
+      if (!files.length) {
+        addMessage("system", "Unsupported file. Drop a PDF, DOCX, or text file (.doc is not supported).");
+        return;
+      }
+
+      sendBtn.disabled = true;
+      try {
+        for (const file of files) {
+          setStatus("Reading document…", "working");
+          const doc = await uploadDocument(file);
+          pendingDocuments = mergeDocument(pendingDocuments, doc);
+        }
+        renderComposerAttachments();
+        promptInput.focus();
+        setStatus("Document attached — type your instruction and Send", "ok");
+      } catch (err) {
+        addMessage("system", err.message || "Could not read document");
+        setStatus("Upload failed", "error");
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    function setupDragAndDrop() {
+      let dragDepth = 0;
+
+      const showOverlay = () => chatMain.classList.add("drag-over");
+      const hideOverlay = () => {
+        dragDepth = 0;
+        chatMain.classList.remove("drag-over");
+      };
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        chatMain.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (eventName === "dragenter") dragDepth += 1;
+          showOverlay();
+        });
+      });
+
+      chatMain.addEventListener("dragleave", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        dragDepth -= 1;
+        if (dragDepth <= 0) hideOverlay();
+      });
+
+      chatMain.addEventListener("drop", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        hideOverlay();
+        if (event.dataTransfer?.files?.length) {
+          await processDroppedFiles(event.dataTransfer.files);
+        }
+      });
     }
 
     function renderPromptButtons(container, items, className) {
@@ -882,8 +1283,33 @@
 
     function renderQuickPrompts() {
       quickPrompts.querySelectorAll(".chip").forEach((el) => el.remove());
-      renderPromptButtons(quickPrompts, QUICK_PROMPTS, "chip");
-      quickPrompts.classList.toggle("visible", history.length > 0);
+      const hasDocs = uploadedDocuments.length > 0 || pendingDocuments.length > 0;
+      const prompts = QUICK_PROMPTS.filter((item) => !item.needsDoc || hasDocs);
+      renderPromptButtons(quickPrompts, prompts, "chip");
+    }
+
+    function appendNextSteps(bubble, nextSteps) {
+      if (!nextSteps || !nextSteps.length) return;
+      const wrap = document.createElement("div");
+      wrap.className = "next-steps";
+      wrap.innerHTML = '<span class="next-label">Suggested next step</span>';
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      nextSteps.forEach((step, i) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chip";
+        chip.textContent = step.label;
+        chip.style.animationDelay = `${i * 0.06}s`;
+        chip.addEventListener("click", () => {
+          if (step.mode) modeSelect.value = step.mode;
+          updatePipeline();
+          sendPrompt(step.prompt);
+        });
+        chips.appendChild(chip);
+      });
+      wrap.appendChild(chips);
+      bubble.appendChild(wrap);
     }
 
     function setStatus(text, type = "") {
@@ -957,26 +1383,7 @@
       }
 
       if (extra.next_steps && extra.next_steps.length) {
-        const wrap = document.createElement("div");
-        wrap.className = "next-steps";
-        wrap.innerHTML = '<span class="next-label">Suggested next step</span>';
-        const chips = document.createElement("div");
-        chips.className = "chips";
-        extra.next_steps.forEach((step, i) => {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = "chip";
-          chip.textContent = step.label;
-          chip.style.animationDelay = `${i * 0.06}s`;
-          chip.addEventListener("click", () => {
-            if (step.mode) modeSelect.value = step.mode;
-            updatePipeline();
-            sendPrompt(step.prompt);
-          });
-          chips.appendChild(chip);
-        });
-        wrap.appendChild(chips);
-        bubble.appendChild(wrap);
+        appendNextSteps(bubble, extra.next_steps);
       }
 
       row.appendChild(bubble);
@@ -1021,6 +1428,18 @@
           const saved = localStorage.getItem(STORAGE_KEY);
           const defaults = (data.email_recipients || []).join(", ");
           emailRecipientsInput.value = saved || defaults;
+          if (data.email_delivery && emailModeHint) {
+            const delivery = data.email_delivery;
+            if (delivery.mode === "test" && delivery.test_recipient_only) {
+              emailModeHint.className = "email-hint email-warning";
+              emailModeHint.innerHTML =
+                `Test mode: only <strong>${delivery.test_recipient_only}</strong> can receive. ` +
+                "Verify a domain at resend.com/domains to email anyone.";
+            } else {
+              emailModeHint.className = "email-hint";
+              emailModeHint.textContent = delivery.hint || "Multiple recipients supported.";
+            }
+          }
         } else {
           setStatus("Missing env vars", "error");
         }
@@ -1030,10 +1449,29 @@
     }
 
     async function sendPrompt(text) {
-      if (!text.trim()) return;
+      const trimmed = text.trim();
+      const attachments = [...pendingDocuments];
 
-      addMessage("user", text);
-      history.push({ role: "user", content: text });
+      if (!trimmed) {
+        if (attachments.length) {
+          promptInput.focus();
+          setStatus("Type what you want the AI to do, then click Send", "");
+        }
+        return;
+      }
+
+      const docsForRequest = documentsForRequest(attachments);
+      const historyText = attachments.length
+        ? `${trimmed}\n\n[Attached: ${attachments.map((doc) => doc.filename).join(", ")}]`
+        : trimmed;
+
+      addUserMessage(trimmed, attachments);
+      history.push({ role: "user", content: historyText });
+
+      pendingDocuments = [];
+      uploadedDocuments = docsForRequest;
+      renderComposerAttachments();
+
       sendBtn.disabled = true;
       sendBtn.classList.add("loading");
       setStatus("Agent working…", "working");
@@ -1044,10 +1482,11 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            prompt: text,
+            prompt: trimmed,
             mode: modeSelect.value,
             history: history.slice(0, -1),
             email_recipients: getEmailRecipients(),
+            documents: docsForRequest,
           }),
         });
         const data = await res.json();
@@ -1060,7 +1499,13 @@
           model_used: data.model_used,
           next_steps: data.next_steps,
         });
-        history.push({ role: "assistant", content: output });
+        history.push({
+          role: "assistant",
+          content: output,
+          steps: data.steps,
+          model_used: data.model_used,
+          next_steps: data.next_steps,
+        });
         renderQuickPrompts();
         setStatus("Done", "ok");
       } catch (err) {
@@ -1087,6 +1532,9 @@
     document.getElementById("clear").addEventListener("click", () => {
       chat.querySelectorAll(".message-row, .typing, .next-steps").forEach((el) => el.remove());
       history = [];
+      uploadedDocuments = [];
+      pendingDocuments = [];
+      renderComposerAttachments();
       showEmpty();
       renderQuickPrompts();
       setStatus("Chat cleared", "");
@@ -1096,6 +1544,7 @@
     emailRecipientsInput.addEventListener("blur", saveEmailRecipients);
 
     modeSelect.addEventListener("change", updatePipeline);
+    setupDragAndDrop();
     updatePipeline();
     renderStarters();
     renderQuickPrompts();

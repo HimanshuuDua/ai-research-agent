@@ -2,7 +2,7 @@ import os
 import sys
 import traceback
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -11,12 +11,21 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from agent.agent import run_agent  # noqa: E402
-from agent.config import get_email_recipients, get_missing_env_keys  # noqa: E402
+from agent.config import get_email_delivery_info, get_email_recipients, get_missing_env_keys  # noqa: E402
 from agent.context import parse_recipient_string  # noqa: E402
+from agent.documents import extract_document  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+
+class ChatDocument(BaseModel):
+    filename: str
+    text: str
+    char_count: int = 0
+    truncated: bool = False
+    format: str = "text"
 
 
 class ChatRequest(BaseModel):
@@ -24,6 +33,7 @@ class ChatRequest(BaseModel):
     mode: str = "full"
     history: list = Field(default_factory=list)
     email_recipients: str = ""
+    documents: list[ChatDocument] = Field(default_factory=list)
 
 
 @app.get("/")
@@ -47,7 +57,33 @@ def health():
         "status": "ok",
         "email_recipients": get_email_recipients(),
         "email_count": len(get_email_recipients()),
+        "email_delivery": get_email_delivery_info(),
     }
+
+
+@app.post("/api/upload")
+async def upload_document(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail={"error": "Filename is required."})
+
+    try:
+        data = await file.read()
+        extracted = extract_document(data, file.filename)
+        return {
+            "filename": extracted.filename,
+            "text": extracted.text,
+            "char_count": extracted.char_count,
+            "truncated": extracted.truncated,
+            "format": extracted.format,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    except Exception as exc:
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail={"error": f"Could not read document: {exc}"},
+        ) from exc
 
 
 @app.post("/api/chat")
@@ -68,11 +104,13 @@ def chat(body: ChatRequest):
     try:
         ui_recipients = parse_recipient_string(body.email_recipients)
         recipients = ui_recipients or get_email_recipients() or None
+        documents = [doc.model_dump() for doc in body.documents] or None
         result = run_agent(
             body.prompt.strip(),
             mode=body.mode,
             chat_history=body.history,
             email_recipients=recipients,
+            documents=documents,
         )
         return {
             "output": result.output,

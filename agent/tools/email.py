@@ -4,7 +4,7 @@ import resend
 from langchain_core.tools import tool
 from resend.exceptions import ResendError
 
-from agent.config import get_email_recipients
+from agent.config import get_email_recipients, validate_outbound_recipients
 from agent.context import get_active_recipients
 from agent.errors import friendly_agent_error
 
@@ -26,8 +26,8 @@ def send_email(subject: str, body: str, recipients: str = "") -> str:
     """Send email summary. Use recipients for comma-separated addresses from the user."""
     try:
         to_list = _resolve_recipients(recipients)
-        if not to_list:
-            return "Error: no recipient configured. Add an email in the UI or set RESEND_TO_EMAIL."
+        if validation_error := validate_outbound_recipients(to_list):
+            return f"Error: {validation_error}"
 
         resend.api_key = os.environ["RESEND_API_KEY"]
         payload = {

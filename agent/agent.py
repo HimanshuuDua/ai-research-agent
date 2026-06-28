@@ -8,10 +8,15 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from agent.config import FALLBACK_MODEL, PRIMARY_MODEL
-from agent.context import set_active_recipients
+from agent.context import set_active_documents, set_active_recipients
 from agent.errors import AgentServiceError, friendly_agent_error
 from agent.llm import create_llm
-from agent.tools import get_email_tool, get_python_repl_tool, get_web_search_tool
+from agent.tools import (
+    get_document_reader_tool,
+    get_email_tool,
+    get_python_repl_tool,
+    get_web_search_tool,
+)
 
 load_dotenv()
 
@@ -20,11 +25,15 @@ ToolMode = Literal["search_only", "search_and_code", "full"]
 SYSTEM_PROMPT = """You are a research assistant that takes action — you do not just answer.
 
 When given a task:
-1. Use web_search to gather current information on the topic.
-2. Use python_repl to analyze, summarize, or format the findings when analysis is needed.
-3. Use send_email to deliver a clear summary when email is requested.
+1. Use read_document to read uploaded PDFs, DOCX, or text files.
+2. For document uploads, summarize from the file only — do NOT use web_search unless the user
+   explicitly asks to verify, cross-check, or compare with the web.
+3. Use web_search when the user asks to cross-check a document or research a topic online.
+4. Use python_repl to analyze or format findings when analysis is needed.
+5. Use send_email to deliver a clear summary when email is requested.
    Always send to the recipient list provided in [Email recipients: ...] when present.
 
+For document summaries: call read_document first, then write a structured summary with key points.
 Work step by step. Be thorough but concise in your final response and email."""
 
 PROMPT = ChatPromptTemplate.from_messages(
@@ -56,7 +65,27 @@ def suggest_next_steps(mode: ToolMode, steps: list[AgentStep]) -> list[dict]:
     email_sent = any(
         s.tool == "send_email" and "sent successfully" in s.output.lower() for s in steps
     )
+    doc_read = any(s.tool == "read_document" for s in steps)
     suggestions: list[dict] = []
+
+    if doc_read and not email_sent:
+        suggestions.append(
+            {
+                "label": "Cross-check with web",
+                "prompt": (
+                    "Cross-check the document summary against current web sources. "
+                    "Highlight what matches and what contradicts the document."
+                ),
+                "mode": "search_only",
+            }
+        )
+        suggestions.append(
+            {
+                "label": "Email document summary",
+                "prompt": "Email me the document summary above as a polished report.",
+                "mode": "full",
+            }
+        )
 
     if mode == "search_only":
         suggestions.extend(
@@ -101,11 +130,12 @@ def suggest_next_steps(mode: ToolMode, steps: list[AgentStep]) -> list[dict]:
 
 
 def _build_tools(mode: ToolMode):
+    doc_tool = get_document_reader_tool()
     if mode == "search_only":
-        return [get_web_search_tool()]
+        return [doc_tool, get_web_search_tool()]
     if mode == "search_and_code":
-        return [get_web_search_tool(), get_python_repl_tool()]
-    return [get_web_search_tool(), get_python_repl_tool(), get_email_tool()]
+        return [doc_tool, get_web_search_tool(), get_python_repl_tool()]
+    return [doc_tool, get_web_search_tool(), get_python_repl_tool(), get_email_tool()]
 
 
 def _steps_from_intermediate(intermediate_steps: list) -> list[AgentStep]:
@@ -163,6 +193,7 @@ def run_agent(
     mode: ToolMode = "full",
     chat_history: list | None = None,
     email_recipients: list[str] | None = None,
+    documents: list[dict] | None = None,
 ) -> AgentResult:
     models_to_try = [PRIMARY_MODEL, FALLBACK_MODEL]
     last_error: Exception | None = None
@@ -173,10 +204,17 @@ def run_agent(
             f"{user_input}\n\n[Email recipients: {', '.join(email_recipients)}. "
             "Use send_email with recipients set to this list when sending email.]"
         )
+    if documents:
+        names = ", ".join(doc["filename"] for doc in documents)
+        agent_input = (
+            f"{agent_input}\n\n[Uploaded documents available: {names}. "
+            "Use read_document to access their content when relevant.]"
+        )
 
     for model_name in models_to_try:
         try:
             set_active_recipients(email_recipients)
+            set_active_documents(documents)
             executor = create_agent(mode, model=model_name)
             result = executor.invoke(
                 {
@@ -200,5 +238,6 @@ def run_agent(
             raise friendly_agent_error(exc) from exc
         finally:
             set_active_recipients(None)
+            set_active_documents(None)
 
     raise friendly_agent_error(last_error or AgentServiceError("Gemini quota exceeded."))

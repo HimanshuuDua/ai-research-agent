@@ -1,150 +1,257 @@
 # AI Research Agent
 
-An AI agent that takes a single text command — like *"Research the latest trends in electric vehicles, run a quick analysis, and email me a summary"* — and executes all three steps automatically.
+An AI agent that takes one command — research, analyze, summarize documents, and email results — and runs the full pipeline automatically.
 
-## What it demonstrates
+**Live demo:** https://ai-research-agent-ecru-zeta.vercel.app
 
-- **Multi-step reasoning** with LangChain + Gemini
-- **Tool use**: web search (SerpAPI), sandboxed Python, email (Resend)
-- **Chat UI** in Streamlit with visible agent steps
-- **Model fallback** when Gemini free-tier quota is hit
+---
 
-## Tech stack (free-tier friendly)
+## Table of contents
+
+1. [Features](#features)
+2. [Tech stack](#tech-stack)
+3. [Quick start (local)](#quick-start-local)
+4. [Environment variables](#environment-variables)
+5. [Email setup — test vs production](#email-setup--test-vs-production)
+6. [Usage guide](#usage-guide)
+7. [Deploy to Vercel](#deploy-to-vercel)
+8. [Project structure](#project-structure)
+9. [Development](#development)
+10. [Troubleshooting](#troubleshooting)
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| Web search | Current info via SerpAPI |
+| Python analysis | Sandboxed REPL for stats and formatting |
+| Document upload | Drag PDF, DOCX, or text into chat — you choose the prompt |
+| Email delivery | Send summaries via Resend |
+| Chat UI | Web (Vercel) + Streamlit (local) |
+| Model fallback | Switches to `gemini-2.5-flash-lite` on quota errors |
+
+---
+
+## Tech stack
 
 | Layer | Technology | Free tier |
 |-------|------------|-----------|
-| Agent brain | LangChain, Gemini 2.5 Flash | Free quota via Google AI Studio |
-| Fallback model | Gemini 2.5 Flash Lite | Separate free quota |
-| Web search | SerpAPI | 250 searches/month |
+| Agent | LangChain + Gemini 2.5 Flash | [Google AI Studio](https://aistudio.google.com/apikey) |
+| Fallback model | Gemini 2.5 Flash Lite | Separate quota |
+| Search | SerpAPI | 250 searches/month |
 | Email | Resend | 3,000 emails/month |
-| Chat UI | Streamlit | Free |
+| Web UI | FastAPI + static HTML | Vercel free tier |
+| Local UI | Streamlit | Free |
 
-## Quick start
+---
 
-### 1. Clone and install
+## Quick start (local)
 
 ```bash
 git clone https://github.com/HimanshuuDua/ai-research-agent.git
 cd ai-research-agent
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS/Linux
 pip install -r requirements.txt
+copy .env.example .env          # fill in API keys
+streamlit run app.py
 ```
 
-### 2. Configure API keys
+Open **http://localhost:8501**
 
-```bash
-copy .env.example .env
-```
-
-Fill in `.env`:
-
-- `GOOGLE_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey)
-- `SERPAPI_API_KEY` — [SerpAPI](https://serpapi.com/)
-- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_TO_EMAIL` — [Resend](https://resend.com/)
-
-Optional:
-
-- `GEMINI_MODEL` (default: `gemini-2.5-flash`)
-- `GEMINI_FALLBACK_MODEL` (default: `gemini-2.5-flash-lite`)
-
-### 3. Verify email (optional)
+Verify email:
 
 ```bash
 python send_test_email.py
 ```
 
-### 4. Run the website
+---
 
-```bash
-streamlit run app.py
-```
+## Environment variables
 
-Open **http://localhost:8501** — type a command, watch the agent work, see results.
+Copy `.env.example` → `.env` and set:
 
-## Build order (recommended)
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GOOGLE_API_KEY` | Yes | Gemini API key |
+| `SERPAPI_API_KEY` | Yes | Web search |
+| `RESEND_API_KEY` | Yes | Email delivery |
+| `RESEND_FROM_EMAIL` | Yes | Sender address |
+| `RESEND_TO_EMAIL` | Yes | Default recipient(s), comma-separated |
+| `RESEND_ACCOUNT_EMAIL` | Test mode | Your Resend login email (recommended) |
+| `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
+| `GEMINI_FALLBACK_MODEL` | No | Default: `gemini-2.5-flash-lite` |
 
-Use the sidebar mode selector:
+**Never commit `.env` to GitHub.**
 
-1. **Web search only** — verify SerpAPI + LangChain agent works
-2. **Search + Python REPL** — add sandboxed code execution
-3. **Full pipeline** — add email delivery
+---
 
-## Resend email setup
+## Email setup — test vs production
 
-**Testing (no domain needed):**
+### Why mail only reaches one inbox today
+
+If you use Resend’s test sender:
 
 ```env
 RESEND_FROM_EMAIL=onboarding@resend.dev
-RESEND_TO_EMAIL=your-resend-account@gmail.com
 ```
 
-With the test sender, Resend only delivers to the email on your Resend account.
+Resend **only allows delivery to the email on your Resend account** (e.g. your Gmail). This is a Resend policy, not a bug in this app. Other addresses are blocked with a 403 error.
 
-**Production:** verify your domain at [resend.com/domains](https://resend.com/domains), then use a `@yourdomain.com` from address.
+### Test mode (development)
 
-## Deploy (public demo)
+```env
+RESEND_FROM_EMAIL=onboarding@resend.dev
+RESEND_TO_EMAIL=your-resend-login@gmail.com
+RESEND_ACCOUNT_EMAIL=your-resend-login@gmail.com
+```
 
-### Live site (Vercel)
+- Works immediately, no domain needed
+- Only `RESEND_ACCOUNT_EMAIL` can receive
+- UI shows a yellow warning in test mode
+
+### Production mode (send to anyone)
+
+To email **any address** (team, clients, multiple inboxes):
+
+1. **Verify your domain** at [resend.com/domains](https://resend.com/domains)
+   - Add the DNS records Resend provides (SPF, DKIM)
+   - Wait until status is **Verified**
+
+2. **Update `.env` and Vercel env vars:**
+
+```env
+RESEND_FROM_EMAIL=AI Research Agent <notify@yourdomain.com>
+RESEND_TO_EMAIL=you@gmail.com, teammate@company.com
+RESEND_ACCOUNT_EMAIL=
+```
+
+3. **Redeploy** (Vercel): `vercel deploy --prod`
+
+4. In the web UI sidebar, set **Email recipients** to any comma-separated list
+
+The app detects production mode automatically when `RESEND_FROM_EMAIL` is no longer `onboarding@resend.dev`.
+
+---
+
+## Usage guide
+
+### Agent modes (sidebar)
+
+| Mode | Tools available |
+|------|-----------------|
+| 1 · Web search only | Search + read documents |
+| 2 · Search + Python | Search + code + documents |
+| 3 · Full pipeline (+ email) | All tools including **send_email** |
+
+**Email only works in mode 3.**
+
+### Documents
+
+1. Drag a PDF/DOCX into the chat area
+2. File attaches above the input — nothing sends yet
+3. Type what you want: *“Summarize this”*, *“Cross-check with web”*, etc.
+4. Click **Send**
+
+### Example prompts
+
+```
+Research the latest trends in electric vehicles, run a quick analysis, and email me a summary
+```
+
+```
+Send me a test email with subject Hello and body It works.
+```
+
+```
+Cross-check the document summary against current web sources.
+```
+
+---
+
+## Deploy to Vercel
+
+1. Push to GitHub (see below)
+2. Import repo at [vercel.com/new](https://vercel.com/new)
+3. Set environment variables (same as `.env`)
+4. Deploy
 
 **Production URL:** https://ai-research-agent-ecru-zeta.vercel.app
 
-The Vercel deployment uses FastAPI (`api/index.py`) + a chat UI. Streamlit remains for local dev.
+```bash
+vercel deploy --prod
+```
 
-Set these in [Vercel → Project → Settings → Environment Variables](https://vercel.com/himanshuudua786-ops-projects/ai-research-agent/settings/environment-variables):
+**Note:** Vercel free tier has ~10s function timeout. Long research + email runs may timeout — use Streamlit locally or Vercel Pro for 60s.
 
-- `GOOGLE_API_KEY`
-- `SERPAPI_API_KEY`
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
-- `RESEND_TO_EMAIL`
-
-Redeploy after changing env vars: `vercel deploy --prod`
-
-**Note:** Vercel free tier has a ~10s function timeout. Use **search only** mode for quick tests; full pipeline may need Pro (60s) or run locally via Streamlit.
-
-### Streamlit Community Cloud (alternative)
-
-1. Push this repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect the repo and set secrets (`GOOGLE_API_KEY`, `SERPAPI_API_KEY`, `RESEND_*`)
-4. Main file: `app.py`
-
-### Docker
+### Docker (optional)
 
 ```bash
 docker build -t ai-research-agent .
 docker run -p 8501:8501 --env-file .env ai-research-agent
 ```
 
-## Development
-
-```bash
-pip install -r requirements-dev.txt
-ruff check .
-pytest -q
-```
-
-CI runs lint + tests on push via GitHub Actions.
-
-## Example prompt
-
-```
-Research the latest trends in electric vehicles, run a quick analysis, and email me a summary
-```
+---
 
 ## Project structure
 
 ```
-agent/
-  agent.py          # LangChain agent + run_agent()
-  config.py         # env config
-  errors.py         # friendly error messages
-  llm.py            # Gemini client
-  tools/            # web search, python sandbox, email
-app.py              # Streamlit chat UI
-tests/              # unit tests
+ai-research-agent/
+├── agent/
+│   ├── agent.py              # LangChain agent, modes, next-step suggestions
+│   ├── config.py             # Env config, email test/production detection
+│   ├── context.py            # Session recipients + documents
+│   ├── documents.py          # PDF/DOCX/text extraction
+│   ├── errors.py             # User-friendly API errors
+│   ├── llm.py                # Gemini client
+│   └── tools/
+│       ├── web_search.py     # SerpAPI
+│       ├── python_repl.py    # Sandboxed Python
+│       ├── email.py          # Resend + recipient validation
+│       └── document_reader.py
+├── api/
+│   ├── index.py              # FastAPI (Vercel)
+│   └── static/index.html     # Web chat UI
+├── app.py                    # Streamlit UI (local)
+├── public/index.html         # Static UI copy
+├── tests/                    # pytest suite
+├── send_test_email.py        # Resend smoke test
+├── .env.example              # Template (no secrets)
+├── requirements.txt
+├── pyproject.toml
+├── vercel.json
+└── README.md
 ```
+
+---
+
+## Development
+
+```bash
+pip install -r requirements-dev.txt
+ruff check agent api tests app.py
+pytest -q
+```
+
+CI runs on push via `.github/workflows/ci.yml`.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| Email only to one address | Test sender `onboarding@resend.dev` | Verify domain, change `RESEND_FROM_EMAIL` |
+| “Email delivery failed” 403 | Wrong recipient in test mode | Use your Resend account email only |
+| No email sent at all | Wrong agent mode | Use **3 · Full pipeline (+ email)** |
+| Agent stops before email | Gemini quota or Vercel timeout | Retry; use shorter prompt or run locally |
+| Document not read | Legacy `.doc` file | Save as `.docx` or PDF |
+| Missing env on Vercel | Keys not set in dashboard | Add all vars in Vercel → Settings → Environment Variables |
+
+---
 
 ## License
 

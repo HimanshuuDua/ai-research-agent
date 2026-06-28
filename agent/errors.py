@@ -38,13 +38,18 @@ def friendly_agent_error(exc: Exception) -> AgentServiceError:
         )
 
     if isinstance(exc, ResendError) or "resend" in message.lower():
-        return AgentServiceError(
-            "Email delivery failed.",
-            hint=(
-                "Verify RESEND_API_KEY and use onboarding@resend.dev "
-                "only for your own inbox until you verify a domain."
-            ),
+        hint = (
+            "With onboarding@resend.dev you can only email your Resend account address. "
+            "Verify a domain at https://resend.com/domains and set "
+            "RESEND_FROM_EMAIL=Your Name <notify@yourdomain.com> to mail anyone."
         )
+        if "only send testing emails" in message.lower() or "403" in message:
+            hint = (
+                "Resend blocked this recipient. Test sender onboarding@resend.dev only "
+                "works for your Resend login email. Verify a domain at "
+                "https://resend.com/domains to send to any address."
+            )
+        return AgentServiceError("Email delivery failed.", hint=hint)
 
     if "KeyError" in type(exc).__name__:
         return AgentServiceError(
