@@ -18,3 +18,9 @@ REQUIRED_ENV_KEYS = [
 
 def get_missing_env_keys() -> list[str]:
     return [key for key in REQUIRED_ENV_KEYS if not os.getenv(key)]
+
+
+def get_email_recipients() -> list[str]:
+    """Parse RESEND_TO_EMAIL — supports comma-separated multiple addresses."""
+    raw = os.getenv("RESEND_TO_EMAIL", "")
+    return [email.strip() for email in raw.split(",") if email.strip()]

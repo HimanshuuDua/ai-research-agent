@@ -22,6 +22,7 @@ When given a task:
 1. Use web_search to gather current information on the topic.
 2. Use python_repl to analyze, summarize, or format the findings when analysis is needed.
 3. Use send_email to deliver a clear summary to the user inbox when email is requested.
+   Emails go to the configured recipient list unless the user asks to add more addresses.
 
 Work step by step. Be thorough but concise in your final response and email."""
 
@@ -47,6 +48,55 @@ class AgentResult:
     output: str
     steps: list[AgentStep] = field(default_factory=list)
     model_used: str = PRIMARY_MODEL
+    next_steps: list[dict] = field(default_factory=list)
+
+
+def suggest_next_steps(mode: ToolMode, steps: list[AgentStep]) -> list[dict]:
+    email_sent = any(
+        s.tool == "send_email" and "sent successfully" in s.output.lower() for s in steps
+    )
+    suggestions: list[dict] = []
+
+    if mode == "search_only":
+        suggestions.extend(
+            [
+                {
+                    "label": "Analyze with Python",
+                    "prompt": "Use Python to analyze and summarize your last search findings.",
+                    "mode": "search_and_code",
+                },
+                {
+                    "label": "Email me a summary",
+                    "prompt": "Email me a polished executive summary of what you just researched.",
+                    "mode": "full",
+                },
+            ]
+        )
+    elif mode == "search_and_code" and not email_sent:
+        suggestions.append(
+            {
+                "label": "Email this report",
+                "prompt": "Send the analysis above to my inbox as a formatted email.",
+                "mode": "full",
+            }
+        )
+    elif mode == "full" and email_sent:
+        suggestions.append(
+            {
+                "label": "Research another topic",
+                "prompt": "Research the latest AI agent trends in 2025 and email me a summary.",
+                "mode": "full",
+            }
+        )
+
+    suggestions.append(
+        {
+            "label": "Dig deeper",
+            "prompt": "Search for more data on this topic and highlight the top 5 insights.",
+            "mode": mode,
+        }
+    )
+    return suggestions[:3]
 
 
 def _build_tools(mode: ToolMode):
@@ -124,10 +174,12 @@ def run_agent(
                     "chat_history": _normalize_chat_history(chat_history),
                 }
             )
+            steps = _steps_from_intermediate(result.get("intermediate_steps", []))
             return AgentResult(
                 output=result.get("output") or "Task completed.",
-                steps=_steps_from_intermediate(result.get("intermediate_steps", [])),
+                steps=steps,
                 model_used=model_name,
+                next_steps=suggest_next_steps(mode, steps),
             )
         except ResourceExhausted as exc:
             last_error = exc

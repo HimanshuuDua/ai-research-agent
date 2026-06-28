@@ -11,7 +11,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from agent.agent import run_agent  # noqa: E402
-from agent.config import get_missing_env_keys  # noqa: E402
+from agent.config import get_email_recipients, get_missing_env_keys  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
@@ -41,7 +41,11 @@ def health():
                 "hint": "Add them in Vercel → Settings → Environment Variables.",
             },
         )
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "email_recipients": get_email_recipients(),
+        "email_count": len(get_email_recipients()),
+    }
 
 
 @app.post("/api/chat")
@@ -64,6 +68,7 @@ def chat(body: ChatRequest):
         return {
             "output": result.output,
             "model_used": result.model_used,
+            "next_steps": result.next_steps,
             "steps": [
                 {"tool": s.tool, "input": s.input, "output": s.output}
                 for s in result.steps

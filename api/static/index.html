@@ -84,11 +84,10 @@
       z-index: 1;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1rem;
-      gap: 1rem;
+      width: 100%;
+      height: 100dvh;
+      padding: 0.65rem 0.85rem;
+      gap: 0.65rem;
       animation: fadeUp 0.7s var(--ease) both;
     }
 
@@ -188,9 +187,10 @@
     .layout {
       flex: 1;
       display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 1rem;
+      grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+      gap: 0.65rem;
       min-height: 0;
+      width: 100%;
       animation: fadeUp 0.7s var(--ease) 0.1s both;
     }
 
@@ -204,12 +204,24 @@
     }
 
     aside {
-      padding: 1.1rem;
+      padding: 0.85rem;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
       overflow-y: auto;
     }
+
+    .email-info {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.45;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.45);
+    }
+
+    .email-info strong { color: #cbd5e1; font-weight: 500; }
 
     .panel-title {
       font-size: 0.72rem;
@@ -253,15 +265,17 @@
     .btn:active { transform: translateY(0) scale(0.98); }
 
     .btn-example {
-      margin-bottom: 0.45rem;
+      margin-bottom: 0.4rem;
       display: flex;
       align-items: center;
       gap: 0.55rem;
     }
 
-    .btn-example span.icon {
-      font-size: 0.95rem;
-      opacity: 0.85;
+    .btn-example .icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: var(--accent);
     }
 
     .pipeline {
@@ -295,24 +309,32 @@
     main {
       display: flex;
       flex-direction: column;
+      min-height: 0;
+      flex: 1;
     }
 
     #chat {
       flex: 1;
       overflow-y: auto;
-      padding: 1.25rem;
+      padding: 0.85rem 1rem;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
       scroll-behavior: smooth;
     }
 
     .empty-state {
-      margin: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
-      max-width: 360px;
+      max-width: 420px;
+      margin: 0 auto;
       color: var(--muted);
       animation: fadeUp 0.8s var(--ease) 0.2s both;
+      padding: 1rem;
     }
 
     .empty-state .orb {
@@ -340,8 +362,8 @@
 
     .message-row {
       display: flex;
-      gap: 0.65rem;
-      max-width: 92%;
+      gap: 0.55rem;
+      max-width: min(780px, 96%);
       animation: msgIn 0.45s var(--ease) both;
     }
 
@@ -355,20 +377,27 @@
     .message-row.system { align-self: center; max-width: 100%; }
 
     .avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 10px;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
       flex-shrink: 0;
       display: grid;
       place-items: center;
-      font-size: 0.85rem;
       border: 1px solid var(--border);
       background: rgba(15, 23, 42, 0.8);
+      color: #94a3b8;
     }
+
+    .avatar svg { width: 16px; height: 16px; }
 
     .message-row.user .avatar {
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
       border: none;
+      color: white;
+    }
+
+    .message-row.assistant .avatar {
+      color: #93c5fd;
     }
 
     .bubble {
@@ -433,7 +462,12 @@
 
     details.step summary::-webkit-details-marker { display: none; }
 
-    details.step summary:hover { color: var(--text); }
+    details.step summary .tool-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      color: var(--accent);
+    }
 
     details.step summary .chevron {
       margin-left: auto;
@@ -452,6 +486,51 @@
       line-height: 1.45;
       animation: fadeUp 0.3s var(--ease);
     }
+
+    details.step summary:hover { color: var(--text); }
+
+    .next-steps {
+      margin-top: 0.75rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .next-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.45rem;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .chip {
+      padding: 0.4rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: rgba(59, 130, 246, 0.1);
+      color: #bfdbfe;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s var(--ease), border-color 0.2s;
+      animation: fadeUp 0.35s var(--ease) both;
+    }
+
+    .chip:hover {
+      background: rgba(59, 130, 246, 0.22);
+      border-color: rgba(59, 130, 246, 0.55);
+      transform: translateY(-1px);
+    }
+
+    .logo svg { width: 22px; height: 22px; color: white; }
 
     .typing {
       display: flex;
@@ -574,7 +653,9 @@
   <div class="app">
     <header>
       <div class="brand">
-        <div class="logo" aria-hidden="true">🤖</div>
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M9 17h6"/></svg>
+        </div>
         <div>
           <h1>AI Research Agent</h1>
           <p>Search → analyze → email — one command</p>
@@ -603,15 +684,23 @@
         </div>
 
         <div>
+          <div class="panel-title">Email delivery</div>
+          <div class="email-info" id="email-info">Loading recipients…</div>
+        </div>
+
+        <div>
           <div class="panel-title">Try an example</div>
           <button type="button" class="btn btn-example" data-prompt="What are the top 3 electric vehicle trends in 2025?">
-            <span class="icon">🔍</span> EV trends search
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            EV trends search
           </button>
           <button type="button" class="btn btn-example" data-prompt="Search EV market data and use Python to summarize key stats.">
-            <span class="icon">🐍</span> Search + analyze
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Search + analyze
           </button>
           <button type="button" class="btn btn-example" data-prompt="Research the latest trends in electric vehicles, run a quick analysis, and email me a summary">
-            <span class="icon">✉️</span> Full pipeline
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+            Full pipeline
           </button>
         </div>
 
@@ -650,13 +739,17 @@
     const statusEl = document.getElementById("status");
     const sendBtn = document.getElementById("send");
     const pipeline = document.getElementById("pipeline");
+    const emailInfo = document.getElementById("email-info");
     let history = [];
     let typingEl = null;
 
-    const toolIcons = {
-      web_search: "🔍",
-      python_repl: "🐍",
-      send_email: "✉️",
+    const ICONS = {
+      user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
+      assistant: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/></svg>',
+      web_search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+      python_repl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+      send_email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>',
+      default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
     };
 
     function setStatus(text, type = "") {
@@ -696,7 +789,7 @@
       if (role !== "system") {
         const avatar = document.createElement("div");
         avatar.className = "avatar";
-        avatar.textContent = role === "user" ? "You" : "AI";
+        avatar.innerHTML = role === "user" ? ICONS.user : ICONS.assistant;
         avatar.setAttribute("aria-hidden", "true");
         row.appendChild(avatar);
       }
@@ -712,9 +805,9 @@
           const details = document.createElement("details");
           details.className = "step";
           details.style.animationDelay = `${i * 0.08}s`;
-          const icon = toolIcons[step.tool] || "🔧";
+          const icon = ICONS[step.tool] || ICONS.default;
           details.innerHTML = `
-            <summary>${icon} ${escapeHtml(step.tool)} <span class="chevron">›</span></summary>
+            <summary><span class="tool-icon">${icon}</span> ${escapeHtml(step.tool)} <span class="chevron">›</span></summary>
             <pre>${escapeHtml(step.input)}\n\n→ ${escapeHtml(step.output.slice(0, 800))}</pre>
           `;
           stepsWrap.appendChild(details);
@@ -729,6 +822,29 @@
         bubble.appendChild(meta);
       }
 
+      if (extra.next_steps && extra.next_steps.length) {
+        const wrap = document.createElement("div");
+        wrap.className = "next-steps";
+        wrap.innerHTML = '<span class="next-label">Suggested next step</span>';
+        const chips = document.createElement("div");
+        chips.className = "chips";
+        extra.next_steps.forEach((step, i) => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "chip";
+          chip.textContent = step.label;
+          chip.style.animationDelay = `${i * 0.06}s`;
+          chip.addEventListener("click", () => {
+            if (step.mode) modeSelect.value = step.mode;
+            updatePipeline();
+            sendPrompt(step.prompt);
+          });
+          chips.appendChild(chip);
+        });
+        wrap.appendChild(chips);
+        bubble.appendChild(wrap);
+      }
+
       row.appendChild(bubble);
       chat.appendChild(row);
       chat.scrollTop = chat.scrollHeight;
@@ -739,7 +855,7 @@
       typingEl = document.createElement("div");
       typingEl.className = "typing";
       typingEl.innerHTML = `
-        <div class="avatar" aria-hidden="true">AI</div>
+        <div class="avatar" aria-hidden="true">${ICONS.assistant}</div>
         <div class="typing-dots" aria-label="Agent is thinking">
           <span></span><span></span><span></span>
         </div>
@@ -768,11 +884,18 @@
         const data = await res.json();
         if (data.status === "ok") {
           setStatus("API ready", "ok");
+          const count = data.email_count || 0;
+          const list = (data.email_recipients || []).join(", ");
+          emailInfo.innerHTML = count
+            ? `<strong>${count} recipient${count > 1 ? "s" : ""}</strong><br>${escapeHtml(list)}`
+            : "No email recipients configured.";
         } else {
           setStatus("Missing env vars", "error");
+          emailInfo.textContent = "Email not configured.";
         }
       } catch {
         setStatus("API unreachable", "error");
+        emailInfo.textContent = "Could not load email settings.";
       }
     }
 
@@ -801,7 +924,11 @@
         if (!res.ok) throw new Error(parseError(data));
 
         const output = data.output || "Task completed.";
-        addMessage("assistant", output, { steps: data.steps, model_used: data.model_used });
+        addMessage("assistant", output, {
+          steps: data.steps,
+          model_used: data.model_used,
+          next_steps: data.next_steps,
+        });
         history.push({ role: "assistant", content: output });
         setStatus("Done", "ok");
       } catch (err) {
@@ -826,7 +953,7 @@
     });
 
     document.getElementById("clear").addEventListener("click", () => {
-      chat.querySelectorAll(".message-row, .typing").forEach((el) => el.remove());
+      chat.querySelectorAll(".message-row, .typing, .next-steps").forEach((el) => el.remove());
       history = [];
       showEmpty();
       setStatus("Chat cleared", "");

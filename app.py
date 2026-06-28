@@ -132,6 +132,16 @@ if prompt:
             st.markdown(result.output or "Task completed.")
             st.caption(f"Model: `{result.model_used}`")
 
+            if result.next_steps:
+                st.markdown("**Suggested next step**")
+                cols = st.columns(len(result.next_steps))
+                for col, step in zip(cols, result.next_steps):
+                    if col.button(step["label"], use_container_width=True):
+                        st.session_state.example_prompt = step["prompt"]
+                        if step.get("mode"):
+                            st.session_state["next_mode"] = step["mode"]
+                        st.rerun()
+
             st.session_state.messages.append(
                 {
                     "role": "assistant",
