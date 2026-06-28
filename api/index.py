@@ -38,7 +38,7 @@ from agent.config import (  # noqa: E402
 )
 from agent.context import parse_recipient_string  # noqa: E402
 from agent.documents import MAX_UPLOAD_BYTES, extract_document  # noqa: E402
-from agent.email_delivery import test_smtp_connection  # noqa: E402
+from agent.email_delivery import verify_smtp_login  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
