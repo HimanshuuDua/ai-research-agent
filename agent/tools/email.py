@@ -1,12 +1,8 @@
-import os
-
-import resend
 from langchain_core.tools import tool
-from resend.exceptions import ResendError
 
 from agent.config import get_email_recipients, validate_outbound_recipients
 from agent.context import get_active_recipients
-from agent.errors import friendly_agent_error
+from agent.email_delivery import deliver_email
 
 
 def _resolve_recipients(extra: str = "") -> list[str]:
@@ -24,27 +20,11 @@ def _resolve_recipients(extra: str = "") -> list[str]:
 @tool
 def send_email(subject: str, body: str, recipients: str = "") -> str:
     """Send email summary. Use recipients for comma-separated addresses from the user."""
-    try:
-        to_list = _resolve_recipients(recipients)
-        if validation_error := validate_outbound_recipients(to_list):
-            return f"Error: {validation_error}"
+    to_list = _resolve_recipients(recipients)
+    if validation_error := validate_outbound_recipients(to_list):
+        return f"Error: {validation_error}"
 
-        resend.api_key = os.environ["RESEND_API_KEY"]
-        payload = {
-            "from": os.environ["RESEND_FROM_EMAIL"],
-            "to": to_list,
-            "subject": subject,
-        }
-        if "<" in body and ">" in body:
-            payload["html"] = body
-        else:
-            payload["text"] = body
-
-        response = resend.Emails.send(payload)
-        joined = ", ".join(to_list)
-        return f"Email sent successfully to {joined} (id: {response['id']})."
-    except ResendError as exc:
-        raise friendly_agent_error(exc) from exc
+    return deliver_email(to_list, subject, body)
 
 
 def get_email_tool():

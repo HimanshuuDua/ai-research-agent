@@ -78,10 +78,14 @@ Copy `.env.example` → `.env` and set:
 |----------|----------|-------------|
 | `GOOGLE_API_KEY` | Yes | Gemini API key |
 | `SERPAPI_API_KEY` | Yes | Web search |
-| `RESEND_API_KEY` | Yes | Email delivery |
-| `RESEND_FROM_EMAIL` | Yes | Sender address |
+| `EMAIL_PROVIDER` | No | `smtp` (recommended) or `resend` |
+| `SMTP_USER` | SMTP mode | Your Gmail address |
+| `SMTP_PASSWORD` | SMTP mode | Google App Password (16 chars) |
+| `SMTP_FROM` | No | Display name, e.g. `AI Agent <you@gmail.com>` |
+| `RESEND_API_KEY` | Resend mode | Resend API key |
+| `RESEND_FROM_EMAIL` | Resend mode | Sender address |
 | `RESEND_TO_EMAIL` | Yes | Default recipient(s), comma-separated |
-| `RESEND_ACCOUNT_EMAIL` | Test mode | Your Resend login email (recommended) |
+| `RESEND_ACCOUNT_EMAIL` | Resend test | Your Resend login email |
 | `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
 | `GEMINI_FALLBACK_MODEL` | No | Default: `gemini-2.5-flash-lite` |
 
@@ -89,51 +93,41 @@ Copy `.env.example` → `.env` and set:
 
 ---
 
-## Email setup — test vs production
+## Email setup — send to anyone (no domain verification)
 
-### Why mail only reaches one inbox today
+### Recommended: Gmail SMTP
 
-If you use Resend’s test sender:
+Send to **any email address** using your Gmail account — no domain verification required.
 
-```env
-RESEND_FROM_EMAIL=onboarding@resend.dev
-```
-
-Resend **only allows delivery to the email on your Resend account** (e.g. your Gmail). This is a Resend policy, not a bug in this app. Other addresses are blocked with a 403 error.
-
-### Test mode (development)
+1. Turn on **2-Step Verification** on your Google account
+2. Create an **App Password**: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+3. Add to `.env` (and Vercel env vars for the live site):
 
 ```env
-RESEND_FROM_EMAIL=onboarding@resend.dev
-RESEND_TO_EMAIL=your-resend-login@gmail.com
-RESEND_ACCOUNT_EMAIL=your-resend-login@gmail.com
-```
-
-- Works immediately, no domain needed
-- Only `RESEND_ACCOUNT_EMAIL` can receive
-- UI shows a yellow warning in test mode
-
-### Production mode (send to anyone)
-
-To email **any address** (team, clients, multiple inboxes):
-
-1. **Verify your domain** at [resend.com/domains](https://resend.com/domains)
-   - Add the DNS records Resend provides (SPF, DKIM)
-   - Wait until status is **Verified**
-
-2. **Update `.env` and Vercel env vars:**
-
-```env
-RESEND_FROM_EMAIL=AI Research Agent <notify@yourdomain.com>
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your-16-char-google-app-password
+SMTP_FROM=AI Research Agent <you@gmail.com>
 RESEND_TO_EMAIL=you@gmail.com, teammate@company.com
-RESEND_ACCOUNT_EMAIL=
 ```
 
-3. **Redeploy** (Vercel): `vercel deploy --prod`
+4. Test: `python send_test_email.py`
+5. In the UI sidebar, **Add** any receiver emails — they will all receive mail
 
-4. In the web UI sidebar, set **Email recipients** to any comma-separated list
+### Alternative: Resend (limited without domain)
 
-The app detects production mode automatically when `RESEND_FROM_EMAIL` is no longer `onboarding@resend.dev`.
+Resend’s test sender `onboarding@resend.dev` only delivers to your Resend account email.
+
+```env
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=onboarding@resend.dev
+RESEND_ACCOUNT_EMAIL=you@gmail.com
+```
+
+To email anyone with Resend, verify a domain at [resend.com/domains](https://resend.com/domains) and use `@yourdomain.com` as the sender.
 
 ---
 
@@ -244,8 +238,8 @@ CI runs on push via `.github/workflows/ci.yml`.
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| Email only to one address | Test sender `onboarding@resend.dev` | Verify domain, change `RESEND_FROM_EMAIL` |
-| “Email delivery failed” 403 | Wrong recipient in test mode | Use your Resend account email only |
+| Email only to one address | Using Resend test sender | Switch to `EMAIL_PROVIDER=smtp` with Gmail App Password |
+| SMTP authentication failed | Wrong password | Use Google App Password, not your regular Gmail password |
 | No email sent at all | Wrong agent mode | Use **3 · Full pipeline (+ email)** |
 | Agent stops before email | Gemini quota or Vercel timeout | Retry; use shorter prompt or run locally |
 | Document not read | Legacy `.doc` file | Save as `.docx` or PDF |

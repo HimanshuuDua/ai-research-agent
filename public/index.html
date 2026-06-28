@@ -1622,7 +1622,10 @@
           renderRecipientLists();
           if (data.email_delivery && emailModeHint) {
             const delivery = data.email_delivery;
-            if (delivery.mode === "test" && delivery.test_recipient_only) {
+            if (delivery.mode === "smtp") {
+              emailModeHint.className = "email-hint";
+              emailModeHint.textContent = delivery.hint || "Gmail SMTP — send to any email address.";
+            } else if (delivery.mode === "test" && delivery.test_recipient_only) {
               emailModeHint.className = "email-hint email-warning";
               emailModeHint.innerHTML =
                 `Test mode: only <strong>${delivery.test_recipient_only}</strong> can receive. ` +

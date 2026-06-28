@@ -1,3 +1,5 @@
+import smtplib
+
 from google.api_core.exceptions import ResourceExhausted
 from resend.exceptions import ResendError
 
@@ -37,17 +39,27 @@ def friendly_agent_error(exc: Exception) -> AgentServiceError:
             hint="Manage keys at https://serpapi.com/manage-api-key (250 free searches/month).",
         )
 
+    if isinstance(exc, smtplib.SMTPException):
+        hint = (
+            "Check SMTP_USER and SMTP_PASSWORD in .env. For Gmail, use an App Password: "
+            "https://myaccount.google.com/apppasswords (requires 2-Step Verification)."
+        )
+        if "authentication" in message.lower() or "535" in message:
+            hint = (
+                "Gmail rejected the login. Use an App Password, not your regular password. "
+                "Create one at https://myaccount.google.com/apppasswords"
+            )
+        return AgentServiceError("SMTP email delivery failed.", hint=hint)
+
     if isinstance(exc, ResendError) or "resend" in message.lower():
         hint = (
-            "With onboarding@resend.dev you can only email your Resend account address. "
-            "Verify a domain at https://resend.com/domains and set "
-            "RESEND_FROM_EMAIL=Your Name <notify@yourdomain.com> to mail anyone."
+            "Resend delivery failed. For sending to any address without domain verification, "
+            "switch to Gmail SMTP: EMAIL_PROVIDER=smtp with SMTP_USER and SMTP_PASSWORD."
         )
         if "only send testing emails" in message.lower() or "403" in message:
             hint = (
-                "Resend blocked this recipient. Test sender onboarding@resend.dev only "
-                "works for your Resend login email. Verify a domain at "
-                "https://resend.com/domains to send to any address."
+                "Resend test sender only works for your account email. "
+                "Use EMAIL_PROVIDER=smtp with a Gmail App Password instead."
             )
         return AgentServiceError("Email delivery failed.", hint=hint)
 

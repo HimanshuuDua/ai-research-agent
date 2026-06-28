@@ -11,7 +11,11 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from agent.agent import run_agent  # noqa: E402
-from agent.config import get_email_delivery_info, get_email_recipients, get_missing_env_keys  # noqa: E402
+from agent.config import (  # noqa: E402
+    get_email_delivery_info,
+    get_email_recipients,
+    get_missing_env_keys,
+)
 from agent.context import parse_recipient_string  # noqa: E402
 from agent.documents import extract_document  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402

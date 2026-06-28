@@ -12,7 +12,7 @@ def test_health_endpoint(live_server: str):
         data = json.loads(response.read().decode())
     assert data["status"] == "ok"
     assert "email_delivery" in data
-    assert data["email_delivery"]["mode"] in {"test", "production"}
+    assert data["email_delivery"]["mode"] in {"test", "production", "smtp"}
 
 
 def test_homepage_loads(page: Page, live_server: str):
@@ -33,7 +33,8 @@ def test_add_recipient_email(page: Page, live_server: str):
     )
     page.fill("#recipient-add", "friend@example.com")
     page.click("#recipient-add-btn")
-    expect(page.locator("#recipient-list .recipient-chip", has_text="friend@example.com")).to_be_visible()
+    chip = page.locator("#recipient-list .recipient-chip", has_text="friend@example.com")
+    expect(chip).to_be_visible()
 
 
 def test_email_test_mode_hint(page: Page, live_server: str):
@@ -43,7 +44,8 @@ def test_email_test_mode_hint(page: Page, live_server: str):
     )
     hint = page.locator("#email-mode-hint")
     expect(hint).to_be_visible()
-    expect(hint).to_contain_text("Test mode")
+    text = hint.inner_text().lower()
+    assert "smtp" in text or "test mode" in text or "recipients" in text
 
 
 def test_document_drop_attaches_without_auto_send(page: Page, live_server: str, tmp_path):
