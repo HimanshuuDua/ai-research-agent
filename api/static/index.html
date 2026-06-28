@@ -851,6 +851,103 @@
 
     .pending-doc button:hover { color: #f87171; }
 
+    .recipient-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 0.5rem;
+      min-height: 1.5rem;
+    }
+
+    .recipient-list:empty::before {
+      content: "No recipients yet — add an email below.";
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .recipient-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: rgba(59, 130, 246, 0.12);
+      font-size: 0.72rem;
+      color: #bfdbfe;
+      max-width: 100%;
+    }
+
+    .recipient-chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .recipient-chip button {
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.85rem;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .recipient-chip button:hover { color: #f87171; }
+
+    .recipient-add-row {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .recipient-add-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.65);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.82rem;
+    }
+
+    .recipient-add-row input:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.55);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .btn-add-recipient {
+      width: auto;
+      flex-shrink: 0;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .composer-recipients {
+      display: none;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+      padding: 0 0.15rem;
+    }
+
+    .composer-recipients.visible {
+      display: flex;
+    }
+
+    .composer-recipients-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-right: 0.15rem;
+    }
+
     .bubble .user-text {
       margin-top: 0.45rem;
     }
@@ -969,13 +1066,17 @@
 
         <div>
           <div class="panel-title">Email recipients</div>
-          <textarea
-            id="email-recipients"
-            class="email-input"
-            rows="2"
-            placeholder="you@example.com, teammate@company.com"
-          ></textarea>
-          <p class="email-hint" id="email-mode-hint">Comma-separated recipients. Saved in your browser.</p>
+          <div class="recipient-list" id="recipient-list"></div>
+          <div class="recipient-add-row">
+            <input
+              type="email"
+              id="recipient-add"
+              placeholder="Add receiver email"
+              autocomplete="email"
+            />
+            <button type="button" class="btn btn-add-recipient" id="recipient-add-btn">Add</button>
+          </div>
+          <p class="email-hint" id="email-mode-hint">Add one or more emails. Saved in your browser.</p>
         </div>
 
         <div>
@@ -1024,6 +1125,9 @@
         </div>
 
         <form class="composer" id="form">
+          <div class="composer-recipients" id="composer-recipients">
+            <span class="composer-recipients-label">To</span>
+          </div>
           <div class="composer-attachments" id="composer-attachments"></div>
           <div class="composer-row">
             <div class="input-wrap">
@@ -1050,7 +1154,10 @@
     const statusEl = document.getElementById("status");
     const sendBtn = document.getElementById("send");
     const pipeline = document.getElementById("pipeline");
-    const emailRecipientsInput = document.getElementById("email-recipients");
+    const emailRecipientsInput = document.getElementById("recipient-add");
+    const recipientAddBtn = document.getElementById("recipient-add-btn");
+    const recipientList = document.getElementById("recipient-list");
+    const composerRecipients = document.getElementById("composer-recipients");
     const starterChips = document.getElementById("starter-chips");
     const quickPrompts = document.getElementById("quick-prompts");
     const composerAttachments = document.getElementById("composer-attachments");
@@ -1088,23 +1195,99 @@
     let uploadedDocuments = [];
     let pendingDocuments = [];
 
+    let recipientEmails = [];
+
     const SUPPORTED_EXTENSIONS = [
       ".pdf", ".docx", ".txt", ".md", ".markdown",
       ".csv", ".json", ".html", ".htm", ".rtf",
     ];
 
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function saveRecipientEmails() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recipientEmails));
+    }
+
+    function loadRecipientEmails(defaults = []) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        recipientEmails = [...defaults];
+        return;
+      }
+      try {
+        const parsed = JSON.parse(saved);
+        recipientEmails = Array.isArray(parsed) ? parsed : defaults;
+      } catch {
+        recipientEmails = saved.split(",").map((email) => email.trim()).filter(Boolean);
+      }
+    }
+
+    function renderRecipientLists() {
+      recipientList.innerHTML = "";
+      composerRecipients.querySelectorAll(".recipient-chip").forEach((el) => el.remove());
+
+      recipientEmails.forEach((email, index) => {
+        const sidebarChip = document.createElement("div");
+        sidebarChip.className = "recipient-chip";
+        sidebarChip.innerHTML = `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>`;
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.setAttribute("aria-label", "Remove recipient");
+        removeBtn.textContent = "×";
+        removeBtn.addEventListener("click", () => {
+          recipientEmails.splice(index, 1);
+          renderRecipientLists();
+          saveRecipientEmails();
+        });
+        sidebarChip.appendChild(removeBtn);
+        recipientList.appendChild(sidebarChip);
+
+        const composerChip = document.createElement("div");
+        composerChip.className = "recipient-chip";
+        composerChip.innerHTML = `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>`;
+        composerRecipients.appendChild(composerChip);
+      });
+
+      updateComposerRecipientsVisibility();
+    }
+
+    function addRecipientEmail(rawEmail) {
+      const email = rawEmail.trim().toLowerCase();
+      if (!email) return false;
+      if (!isValidEmail(email)) {
+        addMessage("system", "Enter a valid email address.");
+        return false;
+      }
+      if (recipientEmails.includes(email)) {
+        emailRecipientsInput.value = "";
+        return false;
+      }
+      recipientEmails.push(email);
+      emailRecipientsInput.value = "";
+      renderRecipientLists();
+      saveRecipientEmails();
+      return true;
+    }
+
+    function updateComposerRecipientsVisibility() {
+      const show = modeSelect.value === "full" && recipientEmails.length > 0;
+      composerRecipients.classList.toggle("visible", show);
+    }
+
     function getEmailRecipients() {
-      return emailRecipientsInput.value.trim();
+      return recipientEmails.join(", ");
+    }
+
+    function saveEmailRecipients() {
+      saveRecipientEmails();
     }
 
     function isSupportedFile(file) {
       const name = file.name.toLowerCase();
       if (name.endsWith(".doc")) return false;
       return SUPPORTED_EXTENSIONS.some((ext) => name.endsWith(ext));
-    }
-
-    function saveEmailRecipients() {
-      localStorage.setItem(STORAGE_KEY, emailRecipientsInput.value.trim());
     }
 
     async function uploadDocument(file) {
@@ -1323,6 +1506,7 @@
       pipeline.querySelectorAll(".pipeline-step").forEach((el) => {
         el.classList.toggle("active", Number(el.dataset.step) <= active);
       });
+      updateComposerRecipientsVisibility();
     }
 
     function hideEmpty() {
@@ -1426,8 +1610,16 @@
         if (data.status === "ok") {
           setStatus("API ready", "ok");
           const saved = localStorage.getItem(STORAGE_KEY);
-          const defaults = (data.email_recipients || []).join(", ");
-          emailRecipientsInput.value = saved || defaults;
+          const defaults = (data.email_recipients || []).map((email) => email.toLowerCase());
+          if (saved) {
+            loadRecipientEmails(defaults);
+            if (!recipientEmails.length && defaults.length) {
+              recipientEmails = [...defaults];
+            }
+          } else {
+            recipientEmails = [...defaults];
+          }
+          renderRecipientLists();
           if (data.email_delivery && emailModeHint) {
             const delivery = data.email_delivery;
             if (delivery.mode === "test" && delivery.test_recipient_only) {
@@ -1540,7 +1732,17 @@
       setStatus("Chat cleared", "");
     });
 
-    emailRecipientsInput.addEventListener("change", saveEmailRecipients);
+    recipientAddBtn.addEventListener("click", () => {
+      addRecipientEmail(emailRecipientsInput.value);
+    });
+
+    emailRecipientsInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addRecipientEmail(emailRecipientsInput.value);
+      }
+    });
+
     emailRecipientsInput.addEventListener("blur", saveEmailRecipients);
 
     modeSelect.addEventListener("change", updatePipeline);

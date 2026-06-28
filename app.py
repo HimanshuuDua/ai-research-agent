@@ -92,8 +92,16 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "documents" not in st.session_state:
     st.session_state.documents = []
-if "processed_uploads" not in st.session_state:
-    st.session_state.processed_uploads = set()
+if "recipient_list" not in st.session_state:
+    st.session_state.recipient_list = list(get_email_recipients())
+
+
+def is_valid_email(email: str) -> bool:
+    return "@" in email and "." in email.split("@")[-1]
+
+
+def get_active_recipients_list() -> list[str]:
+    return list(st.session_state.get("recipient_list", []))
 
 
 def queue_prompt(prompt: str, mode: str | None = None) -> None:
@@ -123,7 +131,7 @@ def run_agent_turn(prompt: str, *, user_display: str | None = None) -> None:
         status = st.status("Agent is working...", expanded=True)
         try:
             history = st.session_state.messages[:-1]
-            raw = st.session_state.get("email_recipients", "")
+            raw = ", ".join(get_active_recipients_list())
             recipients = parse_recipient_string(raw) or None
             documents = st.session_state.documents or None
             result = run_agent(
@@ -186,13 +194,34 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Email recipients")
-    default_recipients = ", ".join(get_email_recipients())
-    st.session_state.email_recipients = st.text_area(
-        "Send summaries to (comma-separated)",
-        value=st.session_state.get("email_recipients", default_recipients),
-        height=68,
-        help="Change who receives email summaries for this session.",
+    if st.session_state.recipient_list:
+        for index, email in enumerate(st.session_state.recipient_list):
+            col_label, col_remove = st.columns([5, 1])
+            col_label.markdown(f"`{email}`")
+            if col_remove.button("Remove", key=f"remove_recipient_{index}"):
+                st.session_state.recipient_list.pop(index)
+                st.rerun()
+    else:
+        st.caption("No recipients yet — add an email below.")
+
+    new_recipient = st.text_input(
+        "Add receiver email",
+        placeholder="teammate@company.com",
+        key="new_recipient_input",
     )
+    if st.button("Add recipient", use_container_width=True, key="add_recipient_btn"):
+        email = new_recipient.strip().lower()
+        if not email:
+            st.warning("Enter an email address.")
+        elif not is_valid_email(email):
+            st.warning("Enter a valid email address.")
+        elif email in st.session_state.recipient_list:
+            st.info("That email is already in the list.")
+        else:
+            st.session_state.recipient_list.append(email)
+            st.rerun()
+
+    st.caption("Add one or more receivers. Used when you run the full pipeline (+ email).")
 
     st.divider()
     st.subheader("Try an example")

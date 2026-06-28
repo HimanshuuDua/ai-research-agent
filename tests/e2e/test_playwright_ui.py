@@ -22,6 +22,18 @@ def test_homepage_loads(page: Page, live_server: str):
     expect(page.locator("#send")).to_be_visible()
     expect(page.locator("#mode")).to_be_visible()
     expect(page.locator("#chat-main")).to_be_visible()
+    expect(page.locator("#recipient-add")).to_be_visible()
+    expect(page.locator("#recipient-add-btn")).to_be_visible()
+
+
+def test_add_recipient_email(page: Page, live_server: str):
+    page.goto(live_server)
+    page.wait_for_function(
+        "() => document.querySelector('#status .label')?.textContent === 'API ready'"
+    )
+    page.fill("#recipient-add", "friend@example.com")
+    page.click("#recipient-add-btn")
+    expect(page.locator("#recipient-list .recipient-chip", has_text="friend@example.com")).to_be_visible()
 
 
 def test_email_test_mode_hint(page: Page, live_server: str):
