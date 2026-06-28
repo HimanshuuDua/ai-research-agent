@@ -34,12 +34,18 @@ BREVO_REQUIRED_ENV_KEYS = [
 
 def get_email_provider() -> str:
     explicit = os.getenv("EMAIL_PROVIDER", "").strip().lower()
-    if explicit in {"smtp", "resend", "brevo"}:
-        return explicit
-    if os.getenv("BREVO_API_KEY"):
+    has_smtp = bool(os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"))
+
+    if explicit == "brevo":
         return "brevo"
-    if os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"):
+    if explicit == "smtp":
         return "smtp"
+    if os.getenv("BREVO_API_KEY") and not has_smtp:
+        return "brevo"
+    if has_smtp:
+        return "smtp"
+    if explicit == "resend":
+        return "resend"
     return "resend"
 
 

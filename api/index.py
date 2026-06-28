@@ -27,7 +27,7 @@ def merge_recipients_from_prompt(prompt: str, ui_recipients: list[str]) -> list[
             known.add(email)
     return merged
 
-from agent.agent import run_agent  # noqa: E402
+from agent.agent import AgentStep, run_agent  # noqa: E402
 from agent.config import (  # noqa: E402
     get_email_config_warnings,
     get_email_delivery_info,
@@ -38,11 +38,57 @@ from agent.config import (  # noqa: E402
 )
 from agent.context import parse_recipient_string  # noqa: E402
 from agent.documents import MAX_UPLOAD_BYTES, extract_document  # noqa: E402
-from agent.email_delivery import verify_smtp_login  # noqa: E402
+from agent.email_delivery import deliver_email, verify_smtp_login  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+
+def _email_was_sent(steps: list) -> bool:
+    return any(
+        step.tool == "send_email" and "sent successfully" in step.output.lower()
+        for step in steps
+    )
+
+
+def _ensure_email_delivered(result, recipients: list[str] | None, prompt: str):
+    """If the agent's send_email tool failed, deliver via SMTP/API directly."""
+    if not recipients or _email_was_sent(result.steps):
+        return result
+
+    subject = prompt.strip()[:100] or "Research summary"
+    try:
+        message = deliver_email(
+            recipients,
+            f"AI Research Agent: {subject[:70]}",
+            result.output,
+        )
+        result.steps.append(
+            AgentStep(
+                tool="send_email",
+                input=f"server fallback → {', '.join(recipients)}",
+                output=message,
+            )
+        )
+        if any(
+            phrase in result.output.lower()
+            for phrase in ("cannot send", "encountered an error", "issue with the email")
+        ):
+            result.output = f"{result.output.rstrip()}\n\n{message}"
+    except AgentServiceError as exc:
+        detail = str(exc)
+        if exc.hint:
+            detail = f"{detail} Hint: {exc.hint}"
+        result.steps.append(
+            AgentStep(
+                tool="send_email",
+                input=f"server fallback → {', '.join(recipients)}",
+                output=f"Error: {detail}",
+            )
+        )
+        result.output = f"{result.output.rstrip()}\n\nEmail delivery failed: {detail}"
+    return result
 
 
 class ChatDocument(BaseModel):
@@ -192,6 +238,8 @@ def chat(body: ChatRequest):
             email_recipients=recipients,
             documents=documents,
         )
+        if body.mode == "full":
+            result = _ensure_email_delivered(result, recipients, body.prompt.strip())
         return {
             "output": result.output,
             "model_used": result.model_used,
