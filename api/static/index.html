@@ -251,6 +251,29 @@
       color: #fde68a;
     }
 
+    .config-banner {
+      margin: 0 0 0.5rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid rgba(251, 191, 36, 0.45);
+      background: rgba(251, 191, 36, 0.1);
+      color: #fde68a;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      display: none;
+    }
+
+    .config-banner.visible {
+      display: block;
+    }
+
+    .recipient-toast {
+      font-size: 0.75rem;
+      color: var(--success);
+      min-height: 1.1rem;
+      margin-top: 0.35rem;
+    }
+
     .btn-upload {
       display: flex;
       align-items: center;
@@ -1048,6 +1071,8 @@
       </div>
     </header>
 
+    <div id="config-banner" class="config-banner" role="alert" aria-live="polite"></div>
+
     <div class="layout">
       <aside>
         <div>
@@ -1077,6 +1102,7 @@
             <button type="button" class="btn btn-add-recipient" id="recipient-add-btn">Add</button>
           </div>
           <p class="email-hint" id="email-mode-hint">Add one or more emails. Saved in your browser.</p>
+          <p class="recipient-toast" id="recipient-toast" aria-live="polite"></p>
         </div>
 
         <div>
@@ -1162,7 +1188,10 @@
     const quickPrompts = document.getElementById("quick-prompts");
     const composerAttachments = document.getElementById("composer-attachments");
     const emailModeHint = document.getElementById("email-mode-hint");
+    const configBanner = document.getElementById("config-banner");
+    const recipientToast = document.getElementById("recipient-toast");
     const STORAGE_KEY = "ai-agent-email-recipients";
+    const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
     const DEFAULT_PLACEHOLDER = "Research EV trends, analyze them, and email me a summary";
     const DOC_PLACEHOLDER = "What should I do with this document? e.g. Summarize it, cross-check with web…";
 
@@ -1196,6 +1225,8 @@
     let pendingDocuments = [];
 
     let recipientEmails = [];
+    let emailHintDefault = emailModeHint.textContent;
+    let recipientToastTimer = null;
 
     const SUPPORTED_EXTENSIONS = [
       ".pdf", ".docx", ".txt", ".md", ".markdown",
@@ -1253,21 +1284,66 @@
       updateComposerRecipientsVisibility();
     }
 
+    function showRecipientToast(message, isError = false) {
+      recipientToast.textContent = message;
+      recipientToast.style.color = isError ? "#f87171" : "var(--success)";
+      clearTimeout(recipientToastTimer);
+      recipientToastTimer = setTimeout(() => {
+        recipientToast.textContent = "";
+      }, 3500);
+    }
+
+    function showConfigWarnings(warnings) {
+      if (!warnings || !warnings.length) {
+        configBanner.classList.remove("visible");
+        configBanner.textContent = "";
+        return;
+      }
+      configBanner.innerHTML = warnings
+        .map((warning) => escapeHtml(warning.message))
+        .join(" ");
+      configBanner.classList.add("visible");
+    }
+
+    function applyEmailDeliveryHint(delivery) {
+      if (!delivery || !emailModeHint) return;
+      emailHintDefault =
+        delivery.mode === "smtp"
+          ? delivery.hint || "Gmail SMTP — send to any email address."
+          : delivery.mode === "test" && delivery.test_recipient_only
+            ? `Test mode: only ${delivery.test_recipient_only} can receive. Use Gmail SMTP to email anyone.`
+            : delivery.hint || "Multiple recipients supported.";
+      if (delivery.mode === "smtp") {
+        emailModeHint.className = "email-hint";
+        emailModeHint.textContent = emailHintDefault;
+      } else if (delivery.mode === "test" && delivery.test_recipient_only) {
+        emailModeHint.className = "email-hint email-warning";
+        emailModeHint.innerHTML =
+          `Test mode: only <strong>${escapeHtml(delivery.test_recipient_only)}</strong> can receive. ` +
+          "Set EMAIL_PROVIDER=smtp on Vercel to email anyone.";
+      } else {
+        emailModeHint.className = "email-hint";
+        emailModeHint.textContent = emailHintDefault;
+      }
+    }
+
     function addRecipientEmail(rawEmail) {
       const email = rawEmail.trim().toLowerCase();
       if (!email) return false;
       if (!isValidEmail(email)) {
-        addMessage("system", "Enter a valid email address.");
+        showRecipientToast("Enter a valid email address.", true);
         return false;
       }
       if (recipientEmails.includes(email)) {
         emailRecipientsInput.value = "";
+        showRecipientToast("That email is already in the list.", true);
         return false;
       }
       recipientEmails.push(email);
       emailRecipientsInput.value = "";
       renderRecipientLists();
       saveRecipientEmails();
+      showRecipientToast(`Added ${email}`);
       return true;
     }
 
@@ -1394,6 +1470,10 @@
       sendBtn.disabled = true;
       try {
         for (const file of files) {
+          if (file.size > MAX_UPLOAD_BYTES) {
+            addMessage("system", `${file.name} exceeds the 10 MB limit.`);
+            continue;
+          }
           setStatus("Reading document…", "working");
           const doc = await uploadDocument(file);
           pendingDocuments = mergeDocument(pendingDocuments, doc);
@@ -1620,21 +1700,8 @@
             recipientEmails = [...defaults];
           }
           renderRecipientLists();
-          if (data.email_delivery && emailModeHint) {
-            const delivery = data.email_delivery;
-            if (delivery.mode === "smtp") {
-              emailModeHint.className = "email-hint";
-              emailModeHint.textContent = delivery.hint || "Gmail SMTP — send to any email address.";
-            } else if (delivery.mode === "test" && delivery.test_recipient_only) {
-              emailModeHint.className = "email-hint email-warning";
-              emailModeHint.innerHTML =
-                `Test mode: only <strong>${delivery.test_recipient_only}</strong> can receive. ` +
-                "Verify a domain at resend.com/domains to email anyone.";
-            } else {
-              emailModeHint.className = "email-hint";
-              emailModeHint.textContent = delivery.hint || "Multiple recipients supported.";
-            }
-          }
+          showConfigWarnings(data.config_warnings);
+          applyEmailDeliveryHint(data.email_delivery);
         } else {
           setStatus("Missing env vars", "error");
         }

@@ -37,3 +37,9 @@ def test_smtp_mode_allows_any_recipient(monkeypatch):
     monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
     assert validate_outbound_recipients(["anyone@test.com", "other@test.com"]) is None
 
+
+def test_invalid_recipient_blocked(monkeypatch):
+    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
+    error = validate_outbound_recipients(["not-an-email"])
+    assert error and "Invalid email" in error
+

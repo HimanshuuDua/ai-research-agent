@@ -4,20 +4,26 @@ import traceback
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+MAX_PROMPT_CHARS = 8_000
+MAX_CHAT_DOCUMENTS = 5
+MAX_TOTAL_DOC_CHARS = 150_000
+
 from agent.agent import run_agent  # noqa: E402
 from agent.config import (  # noqa: E402
+    get_email_config_warnings,
     get_email_delivery_info,
-    get_email_recipients,
     get_missing_env_keys,
+    get_valid_email_recipients,
+    is_valid_email,
 )
 from agent.context import parse_recipient_string  # noqa: E402
-from agent.documents import extract_document  # noqa: E402
+from agent.documents import MAX_UPLOAD_BYTES, extract_document  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
@@ -33,11 +39,21 @@ class ChatDocument(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    prompt: str = Field(..., min_length=1)
+    prompt: str = Field(..., min_length=1, max_length=MAX_PROMPT_CHARS)
     mode: str = "full"
     history: list = Field(default_factory=list)
-    email_recipients: str = ""
+    email_recipients: str = Field(default="", max_length=2_000)
     documents: list[ChatDocument] = Field(default_factory=list)
+
+    @field_validator("documents")
+    @classmethod
+    def validate_documents(cls, documents: list[ChatDocument]) -> list[ChatDocument]:
+        if len(documents) > MAX_CHAT_DOCUMENTS:
+            raise ValueError(f"At most {MAX_CHAT_DOCUMENTS} documents per message.")
+        total_chars = sum(len(doc.text) for doc in documents)
+        if total_chars > MAX_TOTAL_DOC_CHARS:
+            raise ValueError("Attached documents exceed the size limit.")
+        return documents
 
 
 @app.get("/")
@@ -59,9 +75,10 @@ def health():
         )
     return {
         "status": "ok",
-        "email_recipients": get_email_recipients(),
-        "email_count": len(get_email_recipients()),
+        "email_recipients": get_valid_email_recipients(),
+        "email_count": len(get_valid_email_recipients()),
         "email_delivery": get_email_delivery_info(),
+        "config_warnings": get_email_config_warnings(),
     }
 
 
@@ -71,7 +88,13 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail={"error": "Filename is required."})
 
     try:
-        data = await file.read()
+        data = await file.read(MAX_UPLOAD_BYTES + 1)
+        if len(data) > MAX_UPLOAD_BYTES:
+            limit_mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail={"error": f"File exceeds {limit_mb} MB limit."},
+            )
         extracted = extract_document(data, file.filename)
         return {
             "filename": extracted.filename,
@@ -82,11 +105,13 @@ async def upload_document(file: UploadFile = File(...)):
         }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+    except HTTPException:
+        raise
     except Exception as exc:
         print(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail={"error": f"Could not read document: {exc}"},
+            detail={"error": "Could not read document."},
         ) from exc
 
 
@@ -105,9 +130,16 @@ def chat(body: ChatRequest):
     if body.mode not in ("search_only", "search_and_code", "full"):
         raise HTTPException(status_code=400, detail={"error": "invalid mode"})
 
+    ui_recipients = parse_recipient_string(body.email_recipients)
+    invalid_recipients = [email for email in ui_recipients if not is_valid_email(email)]
+    if invalid_recipients:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": f"Invalid email address: {', '.join(invalid_recipients)}"},
+        )
+
     try:
-        ui_recipients = parse_recipient_string(body.email_recipients)
-        recipients = ui_recipients or get_email_recipients() or None
+        recipients = ui_recipients or get_valid_email_recipients() or None
         documents = [doc.model_dump() for doc in body.documents] or None
         result = run_agent(
             body.prompt.strip(),

@@ -24,6 +24,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "e2e: browser end-to-end tests (Playwright)",
+    "production: live deployment smoke tests (set E2E_PRODUCTION=1)",
 ]
 
 [tool.ruff]

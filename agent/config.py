@@ -1,6 +1,9 @@
 import os
+import re
 
 from dotenv import load_dotenv
+
+EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 load_dotenv()
 
@@ -42,16 +45,77 @@ def get_missing_env_keys() -> list[str]:
     else:
         missing.extend(key for key in RESEND_REQUIRED_ENV_KEYS if not os.getenv(key))
 
-    if not get_email_recipients():
+    if not get_valid_email_recipients():
         missing.append("RESEND_TO_EMAIL")
 
     return missing
+
+
+def is_valid_email(address: str) -> bool:
+    return bool(EMAIL_PATTERN.match(address.strip()))
 
 
 def get_email_recipients() -> list[str]:
     """Parse RESEND_TO_EMAIL — supports comma-separated multiple addresses."""
     raw = os.getenv("RESEND_TO_EMAIL", "")
     return [email.strip() for email in raw.split(",") if email.strip()]
+
+
+def get_valid_email_recipients() -> list[str]:
+    return [email for email in get_email_recipients() if is_valid_email(email)]
+
+
+def get_email_config_warnings() -> list[dict[str, str]]:
+    """Surface misconfiguration (e.g. RESEND_TO_EMAIL=smtp on Vercel)."""
+    warnings: list[dict[str, str]] = []
+    provider = get_email_provider()
+    recipients = get_email_recipients()
+
+    invalid = [email for email in recipients if not is_valid_email(email)]
+    if invalid:
+        warnings.append(
+            {
+                "code": "invalid_recipients",
+                "message": (
+                    f"RESEND_TO_EMAIL contains invalid addresses: {', '.join(invalid)}. "
+                    "Use real emails like you@gmail.com, not provider names."
+                ),
+            }
+        )
+
+    if provider == "smtp":
+        if not os.getenv("SMTP_USER"):
+            warnings.append(
+                {
+                    "code": "smtp_missing_user",
+                    "message": "EMAIL_PROVIDER is smtp but SMTP_USER is not set.",
+                }
+            )
+        elif not is_valid_email(os.getenv("SMTP_USER", "")):
+            warnings.append(
+                {
+                    "code": "smtp_invalid_user",
+                    "message": "SMTP_USER must be a valid Gmail address.",
+                }
+            )
+        if not os.getenv("SMTP_PASSWORD"):
+            warnings.append(
+                {
+                    "code": "smtp_missing_password",
+                    "message": "EMAIL_PROVIDER is smtp but SMTP_PASSWORD is not set.",
+                }
+            )
+    elif provider == "resend" and is_resend_test_mode():
+        allowed = get_resend_account_email()
+        if allowed and not is_valid_email(allowed):
+            warnings.append(
+                {
+                    "code": "invalid_account_email",
+                    "message": "RESEND_ACCOUNT_EMAIL is not a valid email address.",
+                }
+            )
+
+    return warnings
 
 
 def is_resend_test_mode() -> bool:
@@ -64,16 +128,22 @@ def is_resend_test_mode() -> bool:
 def get_resend_account_email() -> str:
     """Email allowed to receive when using Resend's test sender."""
     explicit = os.getenv("RESEND_ACCOUNT_EMAIL", "").strip()
-    if explicit:
+    if explicit and is_valid_email(explicit):
         return explicit
-    recipients = get_email_recipients()
-    return recipients[0] if recipients else ""
+    for email in get_email_recipients():
+        if is_valid_email(email):
+            return email
+    return ""
 
 
 def validate_outbound_recipients(recipients: list[str]) -> str | None:
     """Return an error message when a send should be blocked, else None."""
     if not recipients:
         return "No recipient configured. Add an email in the UI or set RESEND_TO_EMAIL."
+
+    invalid = [email for email in recipients if not is_valid_email(email)]
+    if invalid:
+        return f"Invalid email address: {', '.join(invalid)}"
 
     if get_email_provider() == "smtp":
         return None
@@ -104,7 +174,7 @@ def get_email_delivery_info() -> dict:
     provider = get_email_provider()
     info = {
         "provider": provider,
-        "default_recipients": get_email_recipients(),
+        "default_recipients": get_valid_email_recipients(),
     }
 
     if provider == "smtp":

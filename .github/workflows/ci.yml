@@ -52,4 +52,4 @@ jobs:
           RESEND_FROM_EMAIL: onboarding@resend.dev
           RESEND_TO_EMAIL: test@example.com
           RESEND_ACCOUNT_EMAIL: test@example.com
-        run: pytest tests/e2e -q
+        run: pytest tests/e2e -q -m "not production"
