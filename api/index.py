@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import traceback
 
@@ -13,6 +14,18 @@ if ROOT not in sys.path:
 MAX_PROMPT_CHARS = 8_000
 MAX_CHAT_DOCUMENTS = 5
 MAX_TOTAL_DOC_CHARS = 150_000
+PROMPT_EMAIL_PATTERN = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
+
+
+def merge_recipients_from_prompt(prompt: str, ui_recipients: list[str]) -> list[str]:
+    merged = list(ui_recipients)
+    known = {email.lower() for email in merged}
+    for match in PROMPT_EMAIL_PATTERN.findall(prompt):
+        email = match.strip().lower()
+        if is_valid_email(email) and email not in known:
+            merged.append(email)
+            known.add(email)
+    return merged
 
 from agent.agent import run_agent  # noqa: E402
 from agent.config import (  # noqa: E402
@@ -139,7 +152,10 @@ def chat(body: ChatRequest):
         )
 
     try:
-        recipients = ui_recipients or get_valid_email_recipients() or None
+        recipients = merge_recipients_from_prompt(
+            body.prompt,
+            ui_recipients or get_valid_email_recipients(),
+        ) or None
         documents = [doc.model_dump() for doc in body.documents] or None
         result = run_agent(
             body.prompt.strip(),

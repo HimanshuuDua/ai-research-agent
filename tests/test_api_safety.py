@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from api.index import app
+from api.index import app, merge_recipients_from_prompt
 
 
 @pytest.fixture
@@ -41,6 +41,15 @@ def test_chat_rejects_oversized_prompt(client):
         json={"prompt": "x" * 9000, "mode": "search_only"},
     )
     assert response.status_code == 422
+
+
+def test_merge_recipients_from_prompt():
+    merged = merge_recipients_from_prompt(
+        "Email the summary to himanshuudua@gmail.com please",
+        ["spammaker81@gmail.com"],
+    )
+    assert "spammaker81@gmail.com" in merged
+    assert "himanshuudua@gmail.com" in merged
 
 
 def test_upload_rejects_missing_filename(client):

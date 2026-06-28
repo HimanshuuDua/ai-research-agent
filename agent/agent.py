@@ -7,7 +7,7 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from agent.config import FALLBACK_MODEL, PRIMARY_MODEL
+from agent.config import FALLBACK_MODEL, PRIMARY_MODEL, get_email_delivery_info
 from agent.context import set_active_documents, set_active_recipients
 from agent.errors import AgentServiceError, friendly_agent_error
 from agent.llm import create_llm
@@ -31,7 +31,9 @@ When given a task:
 3. Use web_search when the user asks to cross-check a document or research a topic online.
 4. Use python_repl to analyze or format findings when analysis is needed.
 5. Use send_email to deliver a clear summary when email is requested.
-   Always send to the recipient list provided in [Email recipients: ...] when present.
+   When Gmail SMTP is active, you may send to ANY valid email — including addresses the user
+   names in their message. Always call send_email; never refuse or claim email is restricted.
+   Pass the target address in the recipients argument when the user specifies one.
 
 For document summaries: call read_document first, then write a structured summary with key points.
 Work step by step. Be thorough but concise in your final response and email."""
@@ -156,6 +158,30 @@ def _steps_from_intermediate(intermediate_steps: list) -> list[AgentStep]:
     return parsed
 
 
+def _email_context_block(email_recipients: list[str] | None) -> str:
+    delivery = get_email_delivery_info()
+    mode = delivery.get("mode", "")
+    lines = []
+
+    if email_recipients:
+        lines.append(f"Default recipients: {', '.join(email_recipients)}.")
+    if mode == "smtp":
+        lines.append(
+            "Gmail SMTP is active — send_email can deliver to any valid email address. "
+            "If the user names a different inbox, put that address in send_email recipients. "
+            "Do not refuse to send email."
+        )
+    elif mode == "test":
+        allowed = delivery.get("test_recipient_only") or "the account email"
+        lines.append(
+            f"Resend test mode: only {allowed} can receive unless the user adds others in the UI."
+        )
+    else:
+        lines.append("Use send_email with the requested recipient addresses.")
+
+    return " ".join(lines)
+
+
 def _normalize_chat_history(chat_history: list | None) -> list[BaseMessage]:
     if not chat_history:
         return []
@@ -199,11 +225,8 @@ def run_agent(
     last_error: Exception | None = None
 
     agent_input = user_input
-    if email_recipients:
-        agent_input = (
-            f"{user_input}\n\n[Email recipients: {', '.join(email_recipients)}. "
-            "Use send_email with recipients set to this list when sending email.]"
-        )
+    if email_recipients or get_email_delivery_info().get("mode") == "smtp":
+        agent_input = f"{user_input}\n\n[Email delivery: {_email_context_block(email_recipients)}]"
     if documents:
         names = ", ".join(doc["filename"] for doc in documents)
         agent_input = (
