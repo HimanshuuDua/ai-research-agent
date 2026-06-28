@@ -12,6 +12,7 @@ if ROOT not in sys.path:
 
 from agent.agent import run_agent  # noqa: E402
 from agent.config import get_email_recipients, get_missing_env_keys  # noqa: E402
+from agent.context import parse_recipient_string  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
@@ -22,6 +23,7 @@ class ChatRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     mode: str = "full"
     history: list = Field(default_factory=list)
+    email_recipients: str = ""
 
 
 @app.get("/")
@@ -64,7 +66,14 @@ def chat(body: ChatRequest):
         raise HTTPException(status_code=400, detail={"error": "invalid mode"})
 
     try:
-        result = run_agent(body.prompt.strip(), mode=body.mode, chat_history=body.history)
+        ui_recipients = parse_recipient_string(body.email_recipients)
+        recipients = ui_recipients or get_email_recipients() or None
+        result = run_agent(
+            body.prompt.strip(),
+            mode=body.mode,
+            chat_history=body.history,
+            email_recipients=recipients,
+        )
         return {
             "output": result.output,
             "model_used": result.model_used,

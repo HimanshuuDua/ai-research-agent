@@ -3,7 +3,8 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from agent.agent import run_agent
-from agent.config import FALLBACK_MODEL, PRIMARY_MODEL, get_missing_env_keys
+from agent.config import FALLBACK_MODEL, PRIMARY_MODEL, get_email_recipients, get_missing_env_keys
+from agent.context import parse_recipient_string
 from agent.errors import AgentServiceError
 
 load_dotenv()
@@ -81,6 +82,16 @@ with st.sidebar:
             st.session_state.example_prompt = prompt
 
     st.divider()
+    st.subheader("Email recipients")
+    default_recipients = ", ".join(get_email_recipients())
+    recipients_raw = st.text_area(
+        "Send summaries to (comma-separated)",
+        value=st.session_state.get("email_recipients", default_recipients),
+        height=68,
+        help="Change who receives email summaries for this session.",
+    )
+    st.session_state.email_recipients = recipients_raw
+    st.divider()
     st.subheader("Resend setup")
     st.caption(
         "Testing: use `onboarding@resend.dev` as sender and your account email as recipient. "
@@ -118,7 +129,9 @@ if prompt:
         status = st.status("Agent is working...", expanded=True)
         try:
             history = st.session_state.messages[:-1]
-            result = run_agent(prompt, mode=mode, chat_history=history)
+            raw = st.session_state.get("email_recipients", "")
+            recipients = parse_recipient_string(raw) or None
+            result = run_agent(prompt, mode=mode, chat_history=history, email_recipients=recipients)
 
             for step in result.steps:
                 status.write(f"**{step.tool}** completed")

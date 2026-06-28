@@ -5,11 +5,14 @@ from langchain_core.tools import tool
 from resend.exceptions import ResendError
 
 from agent.config import get_email_recipients
+from agent.context import get_active_recipients
 from agent.errors import friendly_agent_error
 
 
 def _resolve_recipients(extra: str = "") -> list[str]:
-    recipients = list(get_email_recipients())
+    session = get_active_recipients()
+    recipients = list(session) if session else list(get_email_recipients())
+
     if extra:
         for email in extra.split(","):
             email = email.strip()
@@ -20,11 +23,11 @@ def _resolve_recipients(extra: str = "") -> list[str]:
 
 @tool
 def send_email(subject: str, body: str, recipients: str = "") -> str:
-    """Send email summary. Optional extra recipients as comma-separated emails."""
+    """Send email summary. Use recipients for comma-separated addresses from the user."""
     try:
         to_list = _resolve_recipients(recipients)
         if not to_list:
-            return "Error: no recipient configured. Set RESEND_TO_EMAIL in .env."
+            return "Error: no recipient configured. Add an email in the UI or set RESEND_TO_EMAIL."
 
         resend.api_key = os.environ["RESEND_API_KEY"]
         payload = {

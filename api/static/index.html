@@ -221,6 +221,33 @@
       background: rgba(7, 11, 20, 0.45);
     }
 
+    .email-input {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.65);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.82rem;
+      resize: vertical;
+      min-height: 56px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .email-input:focus {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.55);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .email-hint {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      line-height: 1.4;
+    }
+
     .email-info strong { color: #cbd5e1; font-weight: 500; }
 
     .panel-title {
@@ -358,7 +385,53 @@
       margin-bottom: 0.4rem;
     }
 
-    .empty-state p { font-size: 0.88rem; line-height: 1.5; }
+    .empty-state p { font-size: 0.88rem; line-height: 1.5; margin-bottom: 1rem; }
+
+    .starter-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .starter-chip {
+      padding: 0.55rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(59, 130, 246, 0.08);
+      color: #cbd5e1;
+      font-size: 0.82rem;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s var(--ease), border-color 0.2s;
+    }
+
+    .starter-chip:hover {
+      background: rgba(59, 130, 246, 0.16);
+      border-color: rgba(59, 130, 246, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .quick-prompts {
+      padding: 0.55rem 1rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+      border-top: 1px solid transparent;
+    }
+
+    .quick-prompts.visible { border-top-color: var(--border); }
+
+    .quick-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-right: 0.25rem;
+    }
 
     .message-row {
       display: flex;
@@ -684,8 +757,14 @@
         </div>
 
         <div>
-          <div class="panel-title">Email delivery</div>
-          <div class="email-info" id="email-info">Loading recipients…</div>
+          <div class="panel-title">Email recipients</div>
+          <textarea
+            id="email-recipients"
+            class="email-input"
+            rows="2"
+            placeholder="you@example.com, teammate@company.com"
+          ></textarea>
+          <p class="email-hint">Comma-separated. Saved in your browser. With test sender, only your Resend account email works until you verify a domain.</p>
         </div>
 
         <div>
@@ -711,9 +790,14 @@
         <div id="chat">
           <div class="empty-state" id="empty">
             <div class="orb"></div>
-            <h2>Ready when you are</h2>
-            <p>Ask the agent to research a topic, run Python analysis, or email you a summary.</p>
+            <h2>What should I research?</h2>
+            <p>Pick a starter below or type your own command.</p>
+            <div class="starter-chips" id="starter-chips"></div>
           </div>
+        </div>
+
+        <div class="quick-prompts" id="quick-prompts">
+          <span class="quick-label">Try</span>
         </div>
 
         <form class="composer" id="form">
@@ -739,7 +823,23 @@
     const statusEl = document.getElementById("status");
     const sendBtn = document.getElementById("send");
     const pipeline = document.getElementById("pipeline");
-    const emailInfo = document.getElementById("email-info");
+    const emailRecipientsInput = document.getElementById("email-recipients");
+    const starterChips = document.getElementById("starter-chips");
+    const quickPrompts = document.getElementById("quick-prompts");
+    const STORAGE_KEY = "ai-agent-email-recipients";
+
+    const STARTER_PROMPTS = [
+      { label: "Research EV trends in 2025", prompt: "What are the top 3 electric vehicle trends in 2025?", mode: "search_only" },
+      { label: "Analyze market data with Python", prompt: "Search EV market data and use Python to summarize key stats.", mode: "search_and_code" },
+      { label: "Full report to my inbox", prompt: "Research the latest trends in electric vehicles, run a quick analysis, and email me a summary", mode: "full" },
+      { label: "Compare AI agent tools", prompt: "Research the top AI agent frameworks in 2025 and compare their strengths.", mode: "search_only" },
+    ];
+
+    const QUICK_PROMPTS = [
+      { label: "Email summary", prompt: "Email me a summary of what we discussed.", mode: "full" },
+      { label: "Go deeper", prompt: "Dig deeper into this topic with more sources.", mode: null },
+      { label: "New topic", prompt: "Research renewable energy investment trends in 2025.", mode: "search_only" },
+    ];
     let history = [];
     let typingEl = null;
 
@@ -751,6 +851,40 @@
       send_email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>',
       default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
     };
+
+    function getEmailRecipients() {
+      return emailRecipientsInput.value.trim();
+    }
+
+    function saveEmailRecipients() {
+      localStorage.setItem(STORAGE_KEY, emailRecipientsInput.value.trim());
+    }
+
+    function renderPromptButtons(container, items, className) {
+      items.forEach((item) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = className;
+        btn.textContent = item.label;
+        btn.addEventListener("click", () => {
+          if (item.mode) modeSelect.value = item.mode;
+          updatePipeline();
+          sendPrompt(item.prompt);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderStarters() {
+      starterChips.innerHTML = "";
+      renderPromptButtons(starterChips, STARTER_PROMPTS, "starter-chip");
+    }
+
+    function renderQuickPrompts() {
+      quickPrompts.querySelectorAll(".chip").forEach((el) => el.remove());
+      renderPromptButtons(quickPrompts, QUICK_PROMPTS, "chip");
+      quickPrompts.classList.toggle("visible", history.length > 0);
+    }
 
     function setStatus(text, type = "") {
       statusEl.className = "status-pill" + (type ? " " + type : "");
@@ -884,18 +1018,14 @@
         const data = await res.json();
         if (data.status === "ok") {
           setStatus("API ready", "ok");
-          const count = data.email_count || 0;
-          const list = (data.email_recipients || []).join(", ");
-          emailInfo.innerHTML = count
-            ? `<strong>${count} recipient${count > 1 ? "s" : ""}</strong><br>${escapeHtml(list)}`
-            : "No email recipients configured.";
+          const saved = localStorage.getItem(STORAGE_KEY);
+          const defaults = (data.email_recipients || []).join(", ");
+          emailRecipientsInput.value = saved || defaults;
         } else {
           setStatus("Missing env vars", "error");
-          emailInfo.textContent = "Email not configured.";
         }
       } catch {
         setStatus("API unreachable", "error");
-        emailInfo.textContent = "Could not load email settings.";
       }
     }
 
@@ -917,6 +1047,7 @@
             prompt: text,
             mode: modeSelect.value,
             history: history.slice(0, -1),
+            email_recipients: getEmailRecipients(),
           }),
         });
         const data = await res.json();
@@ -930,6 +1061,7 @@
           next_steps: data.next_steps,
         });
         history.push({ role: "assistant", content: output });
+        renderQuickPrompts();
         setStatus("Done", "ok");
       } catch (err) {
         hideTyping();
@@ -956,11 +1088,17 @@
       chat.querySelectorAll(".message-row, .typing, .next-steps").forEach((el) => el.remove());
       history = [];
       showEmpty();
+      renderQuickPrompts();
       setStatus("Chat cleared", "");
     });
 
+    emailRecipientsInput.addEventListener("change", saveEmailRecipients);
+    emailRecipientsInput.addEventListener("blur", saveEmailRecipients);
+
     modeSelect.addEventListener("change", updatePipeline);
     updatePipeline();
+    renderStarters();
+    renderQuickPrompts();
     checkHealth();
   </script>
 </body>

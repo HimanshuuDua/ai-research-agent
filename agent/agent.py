@@ -8,6 +8,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from agent.config import FALLBACK_MODEL, PRIMARY_MODEL
+from agent.context import set_active_recipients
 from agent.errors import AgentServiceError, friendly_agent_error
 from agent.llm import create_llm
 from agent.tools import get_email_tool, get_python_repl_tool, get_web_search_tool
@@ -21,8 +22,8 @@ SYSTEM_PROMPT = """You are a research assistant that takes action — you do not
 When given a task:
 1. Use web_search to gather current information on the topic.
 2. Use python_repl to analyze, summarize, or format the findings when analysis is needed.
-3. Use send_email to deliver a clear summary to the user inbox when email is requested.
-   Emails go to the configured recipient list unless the user asks to add more addresses.
+3. Use send_email to deliver a clear summary when email is requested.
+   Always send to the recipient list provided in [Email recipients: ...] when present.
 
 Work step by step. Be thorough but concise in your final response and email."""
 
@@ -161,16 +162,25 @@ def run_agent(
     user_input: str,
     mode: ToolMode = "full",
     chat_history: list | None = None,
+    email_recipients: list[str] | None = None,
 ) -> AgentResult:
     models_to_try = [PRIMARY_MODEL, FALLBACK_MODEL]
     last_error: Exception | None = None
 
+    agent_input = user_input
+    if email_recipients:
+        agent_input = (
+            f"{user_input}\n\n[Email recipients: {', '.join(email_recipients)}. "
+            "Use send_email with recipients set to this list when sending email.]"
+        )
+
     for model_name in models_to_try:
         try:
+            set_active_recipients(email_recipients)
             executor = create_agent(mode, model=model_name)
             result = executor.invoke(
                 {
-                    "input": user_input,
+                    "input": agent_input,
                     "chat_history": _normalize_chat_history(chat_history),
                 }
             )
@@ -188,5 +198,7 @@ def run_agent(
             continue
         except Exception as exc:
             raise friendly_agent_error(exc) from exc
+        finally:
+            set_active_recipients(None)
 
     raise friendly_agent_error(last_error or AgentServiceError("Gemini quota exceeded."))
