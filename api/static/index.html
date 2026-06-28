@@ -1310,10 +1310,12 @@
       emailHintDefault =
         delivery.mode === "smtp"
           ? delivery.hint || "Gmail SMTP — send to any email address."
-          : delivery.mode === "test" && delivery.test_recipient_only
-            ? `Test mode: only ${delivery.test_recipient_only} can receive. Use Gmail SMTP to email anyone.`
-            : delivery.hint || "Multiple recipients supported.";
-      if (delivery.mode === "smtp") {
+          : delivery.mode === "brevo"
+            ? delivery.hint || "Brevo API — send to any email (works on Vercel)."
+            : delivery.mode === "test" && delivery.test_recipient_only
+              ? `Test mode: only ${delivery.test_recipient_only} can receive. Use Gmail SMTP to email anyone.`
+              : delivery.hint || "Multiple recipients supported.";
+      if (delivery.mode === "smtp" || delivery.mode === "brevo") {
         emailModeHint.className = "email-hint";
         emailModeHint.textContent = emailHintDefault;
       } else if (delivery.mode === "test" && delivery.test_recipient_only) {

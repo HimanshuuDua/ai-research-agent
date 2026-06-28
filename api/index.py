@@ -31,12 +31,14 @@ from agent.agent import run_agent  # noqa: E402
 from agent.config import (  # noqa: E402
     get_email_config_warnings,
     get_email_delivery_info,
+    get_email_provider,
     get_missing_env_keys,
     get_valid_email_recipients,
     is_valid_email,
 )
 from agent.context import parse_recipient_string  # noqa: E402
 from agent.documents import MAX_UPLOAD_BYTES, extract_document  # noqa: E402
+from agent.email_delivery import test_smtp_connection  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 
 app = FastAPI()
@@ -92,6 +94,32 @@ def health():
         "email_count": len(get_valid_email_recipients()),
         "email_delivery": get_email_delivery_info(),
         "config_warnings": get_email_config_warnings(),
+    }
+
+
+@app.get("/api/email/ping")
+def email_ping():
+    missing = get_missing_env_keys()
+    if missing:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": f"Missing: {', '.join(missing)}"},
+        )
+
+    provider = get_email_provider()
+    if provider == "smtp":
+        result = verify_smtp_login()
+        return {"provider": "smtp", **result}
+    if provider == "brevo":
+        return {
+            "provider": "brevo",
+            "ok": True,
+            "hint": "Brevo uses HTTP API — no SMTP login test needed.",
+        }
+    return {
+        "provider": provider,
+        "ok": True,
+        "hint": "Resend uses HTTP API — no SMTP login test needed.",
     }
 
 

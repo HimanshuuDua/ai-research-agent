@@ -169,7 +169,12 @@ def _email_context_block(email_recipients: list[str] | None) -> str:
         lines.append(
             "Gmail SMTP is active — send_email can deliver to any valid email address. "
             "If the user names a different inbox, put that address in send_email recipients. "
-            "Do not refuse to send email."
+            "Do not refuse to send email. If send_email returns an Error, report that exact error."
+        )
+    elif mode == "brevo":
+        lines.append(
+            "Brevo email API is active — send_email can deliver to any valid email address. "
+            "Always call send_email; do not refuse. If send_email returns an Error, report that exact error."
         )
     elif mode == "test":
         allowed = delivery.get("test_recipient_only") or "the account email"
@@ -225,7 +230,7 @@ def run_agent(
     last_error: Exception | None = None
 
     agent_input = user_input
-    if email_recipients or get_email_delivery_info().get("mode") == "smtp":
+    if email_recipients or get_email_delivery_info().get("mode") in {"smtp", "brevo"}:
         agent_input = f"{user_input}\n\n[Email delivery: {_email_context_block(email_recipients)}]"
     if documents:
         names = ", ".join(doc["filename"] for doc in documents)

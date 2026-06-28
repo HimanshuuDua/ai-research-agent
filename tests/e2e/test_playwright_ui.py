@@ -12,7 +12,7 @@ def test_health_endpoint(live_server: str):
         data = json.loads(response.read().decode())
     assert data["status"] == "ok"
     assert "email_delivery" in data
-    assert data["email_delivery"]["mode"] in {"test", "production", "smtp"}
+    assert data["email_delivery"]["mode"] in {"test", "production", "smtp", "brevo"}
 
 
 def test_homepage_loads(page: Page, live_server: str):

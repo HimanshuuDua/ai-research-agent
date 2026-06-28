@@ -43,13 +43,16 @@ def test_production_health(production_url: str):
     assert data["status"] == "ok"
     assert "email_delivery" in data
     delivery = data["email_delivery"]
-    assert delivery["mode"] in {"test", "production", "smtp"}
+    assert delivery["mode"] in {"test", "production", "smtp", "brevo"}
 
     for email in data.get("email_recipients", []):
         assert EMAIL_RE.match(email), f"Invalid default recipient on server: {email!r}"
 
     if delivery["mode"] == "smtp":
         assert delivery.get("provider") == "smtp"
+        ping = _fetch_json("/api/email/ping")
+        if not ping.get("ok"):
+            pytest.fail(f"SMTP login failed on production: {ping.get('error')} — {ping.get('hint')}")
     if data.get("config_warnings"):
         pytest.fail(
             "Production config warnings: "

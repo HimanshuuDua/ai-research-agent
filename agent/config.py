@@ -27,11 +27,17 @@ SMTP_REQUIRED_ENV_KEYS = [
     "SMTP_PASSWORD",
 ]
 
+BREVO_REQUIRED_ENV_KEYS = [
+    "BREVO_API_KEY",
+]
+
 
 def get_email_provider() -> str:
     explicit = os.getenv("EMAIL_PROVIDER", "").strip().lower()
-    if explicit in {"smtp", "resend"}:
+    if explicit in {"smtp", "resend", "brevo"}:
         return explicit
+    if os.getenv("BREVO_API_KEY"):
+        return "brevo"
     if os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"):
         return "smtp"
     return "resend"
@@ -42,6 +48,10 @@ def get_missing_env_keys() -> list[str]:
 
     if get_email_provider() == "smtp":
         missing.extend(key for key in SMTP_REQUIRED_ENV_KEYS if not os.getenv(key))
+    elif get_email_provider() == "brevo":
+        missing.extend(key for key in BREVO_REQUIRED_ENV_KEYS if not os.getenv(key))
+        if not os.getenv("BREVO_FROM_EMAIL") and not os.getenv("SMTP_USER"):
+            missing.append("BREVO_FROM_EMAIL")
     else:
         missing.extend(key for key in RESEND_REQUIRED_ENV_KEYS if not os.getenv(key))
 
@@ -119,7 +129,7 @@ def get_email_config_warnings() -> list[dict[str, str]]:
 
 
 def is_resend_test_mode() -> bool:
-    if get_email_provider() == "smtp":
+    if get_email_provider() in {"smtp", "brevo"}:
         return False
     from_email = os.getenv("RESEND_FROM_EMAIL", "").strip().lower()
     return RESEND_TEST_FROM in from_email
@@ -145,7 +155,7 @@ def validate_outbound_recipients(recipients: list[str]) -> str | None:
     if invalid:
         return f"Invalid email address: {', '.join(invalid)}"
 
-    if get_email_provider() == "smtp":
+    if get_email_provider() in {"smtp", "brevo"}:
         return None
 
     if not is_resend_test_mode():
@@ -183,6 +193,16 @@ def get_email_delivery_info() -> dict:
                 "mode": "smtp",
                 "from_email": os.getenv("SMTP_FROM") or os.getenv("SMTP_USER", ""),
                 "hint": "Gmail SMTP active — you can send to any email address.",
+            }
+        )
+        return info
+
+    if provider == "brevo":
+        info.update(
+            {
+                "mode": "brevo",
+                "from_email": os.getenv("BREVO_FROM_EMAIL") or os.getenv("SMTP_USER", ""),
+                "hint": "Brevo API active — send to any email (works on Vercel).",
             }
         )
         return info
