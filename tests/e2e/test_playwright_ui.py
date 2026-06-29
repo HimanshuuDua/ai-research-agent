@@ -45,7 +45,7 @@ def test_email_test_mode_hint(page: Page, live_server: str):
     hint = page.locator("#email-mode-hint")
     expect(hint).to_be_visible()
     text = hint.inner_text().lower()
-    assert "smtp" in text or "test mode" in text or "recipients" in text
+    assert "recipients" in text or "test mode" in text
 
 
 def test_document_drop_attaches_without_auto_send(page: Page, live_server: str, tmp_path):

@@ -30,19 +30,25 @@ ToolMode = Literal["search_only", "search_and_code", "full"]
 
 SYSTEM_PROMPT = """You are a research assistant that takes action — you do not just answer.
 
+Research flow (important):
+- On the first reply for a topic, dig deep: run web_search with a thorough query and deliver a
+  detailed, structured summary (key findings, insights, sources). Never give a shallow teaser and
+  tell the user to dig deeper later.
+- Only call send_email when the user explicitly asks to email or send to their inbox in the
+  current message. Do not email proactively on the first research pass.
+- After sending email, confirm clearly that the message was delivered and to which address(es).
+
 When given a task:
 1. Use read_document to read uploaded PDFs, DOCX, or text files.
 2. For document uploads, summarize from the file only — do NOT use web_search unless the user
    explicitly asks to verify, cross-check, or compare with the web.
-3. Use web_search when the user asks to cross-check a document or research a topic online.
+3. Use web_search for online research and cross-checking.
 4. Use python_repl to analyze or format findings when analysis is needed.
-5. Use send_email to deliver a clear summary when email is requested.
-   When Gmail SMTP is active, you may send to ANY valid email — including addresses the user
-   names in their message. Always call send_email; never refuse or claim email is restricted.
-   Pass the target address in the recipients argument when the user specifies one.
+5. Use send_email only when requested. You may send to any valid address the user names.
+   Always call send_email when asked; never refuse. Pass addresses in the recipients argument.
 
 For document summaries: call read_document first, then write a structured summary with key points.
-Be efficient: prefer 1–2 tool calls when possible. Keep answers and emails concise."""
+Keep emails concise; research replies should be thorough but well organized."""
 
 PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -69,72 +75,75 @@ class AgentResult:
     next_steps: list[dict] = field(default_factory=list)
 
 
-def suggest_next_steps(mode: ToolMode, steps: list[AgentStep]) -> list[dict]:
-    email_sent = any(
+def _email_was_sent(steps: list[AgentStep]) -> bool:
+    return any(
         s.tool == "send_email" and "sent successfully" in s.output.lower() for s in steps
     )
+
+
+def email_status_from_steps(steps: list[AgentStep]) -> dict | None:
+    for step in steps:
+        if step.tool != "send_email":
+            continue
+        lowered = step.output.lower()
+        if "sent successfully" in lowered:
+            return {"sent": True, "message": step.output}
+        if lowered.startswith("error"):
+            return {"sent": False, "message": step.output}
+    return None
+
+
+def suggest_next_steps(mode: ToolMode, steps: list[AgentStep]) -> list[dict]:
+    email_sent = _email_was_sent(steps)
     doc_read = any(s.tool == "read_document" for s in steps)
+    searched = any(s.tool == "web_search" for s in steps)
     suggestions: list[dict] = []
 
-    if doc_read and not email_sent:
-        suggestions.append(
-            {
-                "label": "Cross-check with web",
-                "prompt": (
-                    "Cross-check the document summary against current web sources. "
-                    "Highlight what matches and what contradicts the document."
-                ),
-                "mode": "search_only",
-            }
-        )
-        suggestions.append(
-            {
-                "label": "Email document summary",
-                "prompt": "Email me the document summary above as a polished report.",
-                "mode": "full",
-            }
-        )
-
-    if mode == "search_only":
-        suggestions.extend(
-            [
-                {
-                    "label": "Analyze with Python",
-                    "prompt": "Use Python to analyze and summarize your last search findings.",
-                    "mode": "search_and_code",
-                },
-                {
-                    "label": "Email me a summary",
-                    "prompt": "Email me a polished executive summary of what you just researched.",
-                    "mode": "full",
-                },
-            ]
-        )
-    elif mode == "search_and_code" and not email_sent:
-        suggestions.append(
-            {
-                "label": "Email this report",
-                "prompt": "Send the analysis above to my inbox as a formatted email.",
-                "mode": "full",
-            }
-        )
-    elif mode == "full" and email_sent:
-        suggestions.append(
+    if email_sent:
+        return [
             {
                 "label": "Research another topic",
-                "prompt": "Research the latest AI agent trends in 2025 and email me a summary.",
-                "mode": "full",
+                "prompt": "Research renewable energy investment trends in 2025.",
+                "mode": "search_only",
+            }
+        ]
+
+    email_offer = {
+        "label": "Should I email this?",
+        "prompt": "Email me a polished executive summary of what you just researched.",
+        "mode": "full",
+    }
+
+    if doc_read:
+        if not searched:
+            suggestions.append(
+                {
+                    "label": "Cross-check with web",
+                    "prompt": (
+                        "Cross-check the document summary against current web sources. "
+                        "Highlight what matches and what contradicts the document."
+                    ),
+                    "mode": "search_only",
+                }
+            )
+        suggestions.append(
+            {
+                **email_offer,
+                "prompt": "Email me the document summary above as a polished report.",
             }
         )
+    elif searched or mode in ("search_only", "search_and_code", "full"):
+        suggestions.append(email_offer)
+        if mode == "search_only":
+            suggestions.append(
+                {
+                    "label": "Analyze the data",
+                    "prompt": "Analyze and summarize your last research with clear numbers and comparisons.",
+                    "mode": "search_and_code",
+                }
+            )
 
-    suggestions.append(
-        {
-            "label": "Dig deeper",
-            "prompt": "Search for more data on this topic and highlight the top 5 insights.",
-            "mode": mode,
-        }
-    )
-    return suggestions[:3]
+    return suggestions[:2]
 
 
 def _build_tools(mode: ToolMode):
@@ -261,8 +270,12 @@ def run_agent(
                 }
             )
             steps = _steps_from_intermediate(result.get("intermediate_steps", []))
+            output = result.get("output") or "Task completed."
+            email_status = email_status_from_steps(steps)
+            if email_status and email_status["sent"] and "sent successfully" not in output.lower():
+                output = f"{output.rstrip()}\n\n✓ {email_status['message']}"
             return AgentResult(
-                output=result.get("output") or "Task completed.",
+                output=output,
                 steps=steps,
                 model_used=model_name,
                 next_steps=suggest_next_steps(mode, steps),

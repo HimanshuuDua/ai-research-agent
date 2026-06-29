@@ -25,12 +25,14 @@ An AI agent that takes one command — research, analyze, summarize documents, a
 
 | Feature | Description |
 |---------|-------------|
-| Web search | Current info via SerpAPI |
-| Python analysis | Sandboxed REPL for stats and formatting |
+| Web research | Current info via SerpAPI |
+| Data analysis | Break down stats, tables, and comparisons |
 | Document upload | Drag PDF, DOCX, or text into chat — you choose the prompt |
-| Email delivery | Send summaries via Resend |
-| Chat UI | Web (Vercel) + Streamlit (local) |
+| Email delivery | Gmail SMTP (local), Brevo API (Vercel), or Resend |
+| Chat UI | Responsive web app (Vercel) + Streamlit (local) |
+| Mobile-friendly | Settings drawer, touch-sized controls, chat-first layout |
 | Model fallback | Switches to `gemini-2.5-flash-lite` on quota errors |
+| Faster on Vercel | Lighter default model, tighter limits, trimmed search output |
 
 ---
 
@@ -41,7 +43,7 @@ An AI agent that takes one command — research, analyze, summarize documents, a
 | Agent | LangChain + Gemini 2.5 Flash | [Google AI Studio](https://aistudio.google.com/apikey) |
 | Fallback model | Gemini 2.5 Flash Lite | Separate quota |
 | Search | SerpAPI | 250 searches/month |
-| Email | Resend | 3,000 emails/month |
+| Email | Gmail SMTP / Brevo / Resend | See [Email setup](#email-setup--send-to-anyone-no-domain-verification) |
 | Web UI | FastAPI + static HTML | Vercel free tier |
 | Local UI | Streamlit | Free |
 
@@ -135,13 +137,24 @@ To email anyone with Resend, verify a domain at [resend.com/domains](https://res
 
 ### Agent modes (sidebar)
 
-| Mode | Tools available |
-|------|-----------------|
-| 1 · Web search only | Search + read documents |
-| 2 · Search + Python | Search + code + documents |
-| 3 · Full pipeline (+ email) | All tools including **send_email** |
+| Mode | What it does |
+|------|----------------|
+| 1 · Research only | Looks things up online and gives a clear answer |
+| 2 · Research + analyze | Same research, plus numbers, stats, and comparisons |
+| 3 · Research, analyze & email | Full flow — research, breakdown, and inbox delivery |
 
-**Email only works in mode 3.**
+**Email only works in mode 3** (or when you tap **Should I email this?** after a research reply).
+
+### Typical flow
+
+1. Ask a research question (start in **mode 1** for speed).
+2. Read the detailed reply.
+3. Tap **Should I email this?** — switches to mode 3 and sends a summary.
+4. A green confirmation appears when the email is delivered.
+
+### Mobile
+
+On phones, tap **Settings** in the header for mode, recipients, and examples. The chat stays front and center; settings open in a solid side panel (no background bleed-through).
 
 ### Documents
 
@@ -227,10 +240,23 @@ ai-research-agent/
 ```bash
 pip install -r requirements-dev.txt
 ruff check agent api tests app.py
-pytest -q
+pytest -q -m "not production"
 ```
 
-CI runs on push via `.github/workflows/ci.yml`.
+### End-to-end tests (Playwright)
+
+```bash
+# Local server (starts uvicorn automatically)
+pytest tests/e2e/ -v -m "not production"
+
+# Mobile viewport (iPhone 390×844)
+pytest tests/e2e/test_mobile_ui.py -v
+
+# Live Vercel deployment
+E2E_PRODUCTION=1 pytest tests/e2e/test_production.py -v
+```
+
+CI runs unit tests and local E2E on push via `.github/workflows/ci.yml`.
 
 ---
 
@@ -240,8 +266,9 @@ CI runs on push via `.github/workflows/ci.yml`.
 |---------|-------|-----|
 | Email only to one address | Using Resend test sender | Switch to `EMAIL_PROVIDER=smtp` with Gmail App Password |
 | SMTP authentication failed | Wrong password | Use Google App Password, not your regular Gmail password |
-| No email sent at all | Wrong agent mode | Use **3 · Full pipeline (+ email)** |
-| Agent stops before email | Gemini quota or Vercel timeout | Retry; use shorter prompt or run locally |
+| No email sent at all | Wrong agent mode | Use **3 · Research, analyze & email** |
+| Settings hard to read on mobile | Transparent panel overlay | Hard-refresh — settings panel is now solid with a dimmed backdrop |
+| Chat feels slow on Vercel | Hobby timeout + model quota | Use mode 1; set `GEMINI_MODEL=gemini-2.5-flash-lite` on Vercel |
 | Document not read | Legacy `.doc` file | Save as `.docx` or PDF |
 | Missing env on Vercel | Keys not set in dashboard | Add all vars in Vercel → Settings → Environment Variables |
 

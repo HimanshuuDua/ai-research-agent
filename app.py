@@ -12,9 +12,9 @@ load_dotenv()
 
 MODE_OPTIONS = ["full", "search_and_code", "search_only"]
 MODE_LABELS = {
-    "search_only": "1. Web search only",
-    "search_and_code": "2. Search + Python",
-    "full": "3. Full pipeline (+ email)",
+    "search_only": "1. Research only",
+    "search_and_code": "2. Research + analyze",
+    "full": "3. Research, analyze & email",
 }
 
 DOC_PLACEHOLDER = "What should I do with this document? e.g. Summarize it, cross-check with web…"
@@ -27,11 +27,11 @@ STARTER_PROMPTS = [
     },
     {
         "label": "Search + analyze",
-        "prompt": "Search EV market data and use Python to summarize key stats.",
+        "prompt": "Research EV market data and break down the key stats.",
         "mode": "search_and_code",
     },
     {
-        "label": "Full pipeline",
+        "label": "Research, analyze & email",
         "prompt": (
             "Research the latest trends in electric vehicles, "
             "run a quick analysis, and email me a summary"

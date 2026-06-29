@@ -27,7 +27,7 @@ def merge_recipients_from_prompt(prompt: str, ui_recipients: list[str]) -> list[
             known.add(email)
     return merged
 
-from agent.agent import AgentStep, run_agent  # noqa: E402
+from agent.agent import AgentStep, email_status_from_steps, run_agent  # noqa: E402
 from agent.config import (  # noqa: E402
     get_email_config_warnings,
     get_email_delivery_info,
@@ -240,10 +240,12 @@ def chat(body: ChatRequest):
         )
         if body.mode == "full":
             result = _ensure_email_delivered(result, recipients, body.prompt.strip())
+        email_status = email_status_from_steps(result.steps)
         return {
             "output": result.output,
             "model_used": result.model_used,
             "next_steps": result.next_steps,
+            "email_status": email_status,
             "steps": [
                 {"tool": s.tool, "input": s.input, "output": s.output}
                 for s in result.steps

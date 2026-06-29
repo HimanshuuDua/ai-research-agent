@@ -184,7 +184,7 @@
       50% { opacity: 0.5; transform: scale(0.85); }
     }
 
-    .layout {
+    .app-shell {
       flex: 1;
       display: grid;
       grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
@@ -192,6 +192,14 @@
       min-height: 0;
       width: 100%;
       animation: fadeUp 0.7s var(--ease) 0.1s both;
+    }
+
+    .workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      width: 100%;
     }
 
     aside, main {
@@ -495,11 +503,14 @@
     #chat {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       padding: 0.85rem 1rem;
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
       scroll-behavior: smooth;
+      min-height: 0;
+      min-width: 0;
     }
 
     .empty-state {
@@ -609,7 +620,9 @@
     .message-row {
       display: flex;
       gap: 0.55rem;
-      max-width: min(780px, 96%);
+      max-width: min(780px, 100%);
+      width: 100%;
+      min-width: 0;
       animation: msgIn 0.45s var(--ease) both;
     }
 
@@ -652,7 +665,11 @@
       line-height: 1.6;
       white-space: pre-wrap;
       word-break: break-word;
+      overflow-wrap: anywhere;
       font-size: 0.92rem;
+      min-width: 0;
+      max-width: 100%;
+      flex: 1;
     }
 
     .message-row.user .bubble {
@@ -682,7 +699,7 @@
       font-family: "JetBrains Mono", monospace;
     }
 
-    .steps { margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    .steps { margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.4rem; max-width: 100%; min-width: 0; }
 
     details.step {
       border: 1px solid var(--border);
@@ -690,6 +707,8 @@
       background: rgba(7, 11, 20, 0.5);
       overflow: hidden;
       transition: border-color 0.25s;
+      max-width: 100%;
+      min-width: 0;
     }
 
     details.step[open] { border-color: rgba(59, 130, 246, 0.35); }
@@ -728,9 +747,35 @@
       font-family: "JetBrains Mono", monospace;
       font-size: 0.72rem;
       color: #cbd5e1;
-      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      overflow-x: hidden;
+      max-width: 100%;
       line-height: 1.45;
       animation: fadeUp 0.3s var(--ease);
+    }
+
+    .email-success {
+      margin-top: 0.65rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 10px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: #86efac;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.45rem;
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    .email-success svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
     }
 
     details.step summary:hover { color: var(--text); }
@@ -1035,11 +1080,295 @@
       to { transform: rotate(360deg); }
     }
 
+    .settings-toggle {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.75);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      min-height: 36px;
+    }
+
+    .settings-toggle svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .settings-toggle:hover {
+      border-color: var(--border-hover);
+    }
+
+    .settings-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      background: rgba(2, 6, 23, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: opacity 0.28s var(--ease);
+    }
+
+    .aside-header {
+      display: none;
+    }
+
+    .aside-close {
+      display: none;
+      margin-left: auto;
+      padding: 0.35rem 0.55rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      min-height: 32px;
+    }
+
+    @media (min-width: 861px) {
+      .app-shell .settings-backdrop {
+        display: none !important;
+      }
+
+      aside {
+        position: relative;
+        transform: none;
+        width: auto;
+        z-index: auto;
+        background: var(--surface);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        padding-top: 0.85rem;
+        padding-bottom: 0.85rem;
+      }
+
+      aside.mobile-open {
+        transform: none;
+      }
+    }
+
     @media (max-width: 860px) {
-      body { overflow: auto; }
-      .app { height: auto; min-height: 100vh; }
-      .layout { grid-template-columns: 1fr; }
-      header { flex-direction: column; align-items: flex-start; }
+      html, body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .app {
+        height: 100dvh;
+        min-height: 100dvh;
+        padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+        gap: 0.5rem;
+        overflow: hidden;
+      }
+
+      header {
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 0.7rem 0.85rem;
+        gap: 0.55rem;
+      }
+
+      header .brand {
+        flex: 1;
+        min-width: 0;
+      }
+
+      header h1 {
+        font-size: 1rem;
+      }
+
+      header p {
+        display: none;
+      }
+
+      .logo {
+        width: 36px;
+        height: 36px;
+      }
+
+      .status-pill {
+        font-size: 0.72rem;
+        padding: 0.4rem 0.7rem;
+        max-width: 100%;
+      }
+
+      .settings-toggle {
+        display: inline-flex;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .app-shell {
+        display: block;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .workspace {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      aside {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(360px, 100%);
+        z-index: 80;
+        background: var(--surface-solid);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-radius: 0;
+        border-left: 1px solid var(--border);
+        border-top: none;
+        border-right: none;
+        border-bottom: none;
+        transform: translateX(105%);
+        transition: transform 0.32s var(--ease);
+        box-shadow: -16px 0 48px rgba(0, 0, 0, 0.55);
+        padding-top: max(0.85rem, env(safe-area-inset-top));
+        padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
+        isolation: isolate;
+      }
+
+      aside.mobile-open {
+        transform: translateX(0);
+      }
+
+      .settings-backdrop {
+        display: block;
+        z-index: 60;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .settings-backdrop.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      body.settings-open main {
+        pointer-events: none;
+        user-select: none;
+      }
+
+      main {
+        min-height: 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      #chat {
+        flex: 1;
+        min-height: 0;
+        padding: 0.65rem 0.75rem;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .empty-state {
+        padding: 0.5rem;
+      }
+
+      .empty-state h2 {
+        font-size: 0.95rem;
+      }
+
+      .starter-chips {
+        width: 100%;
+      }
+
+      .starter-chip {
+        width: 100%;
+      }
+
+      .quick-prompts {
+        flex-shrink: 0;
+        padding: 0.5rem 0.75rem 0;
+        gap: 0.35rem;
+      }
+
+      .chip, .starter-chip, .btn, select {
+        min-height: 44px;
+      }
+
+      .composer {
+        flex-shrink: 0;
+        padding: 0.65rem 0.75rem max(0.85rem, env(safe-area-inset-bottom));
+      }
+
+      .composer-row {
+        gap: 0.5rem;
+      }
+
+      .input-wrap input {
+        font-size: 16px;
+        padding: 0.75rem 0.85rem;
+      }
+
+      .send-btn {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        flex-shrink: 0;
+      }
+
+      .message-row {
+        max-width: 100%;
+      }
+
+      .message-row.user .bubble,
+      .message-row.assistant .bubble {
+        font-size: 0.9rem;
+      }
+
+      .btn-clear {
+        margin-top: 0.5rem;
+      }
+
+      .config-banner {
+        font-size: 0.75rem;
+        margin: 0;
+      }
+
+      .aside-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .aside-close {
+        display: inline-flex;
+        align-items: center;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -1062,9 +1391,13 @@
         </div>
         <div>
           <h1>AI Research Agent</h1>
-          <p>Search → analyze → email — one command</p>
+          <p>Research → analyze → email — one command</p>
         </div>
       </div>
+      <button type="button" class="settings-toggle" id="settings-toggle" aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Settings
+      </button>
       <div id="status" class="status-pill">
         <span class="dot"></span>
         <span class="label">Checking API…</span>
@@ -1073,14 +1406,19 @@
 
     <div id="config-banner" class="config-banner" role="alert" aria-live="polite"></div>
 
-    <div class="layout">
-      <aside>
+    <div class="app-shell">
+    <div class="settings-backdrop" id="settings-backdrop" aria-hidden="true"></div>
+    <aside id="sidebar">
+        <div class="aside-header">
+          <div class="panel-title" style="margin-bottom:0">Settings</div>
+          <button type="button" class="aside-close" id="settings-close" aria-label="Close settings">Close</button>
+        </div>
         <div>
           <div class="panel-title">Agent mode</div>
           <select id="mode">
-            <option value="search_only">1 · Web search only</option>
-            <option value="search_and_code">2 · Search + Python</option>
-            <option value="full" selected>3 · Full pipeline (+ email)</option>
+            <option value="search_only" selected>1 · Research only</option>
+            <option value="search_and_code">2 · Research + analyze</option>
+            <option value="full">3 · Research, analyze & email</option>
           </select>
           <div class="pipeline" id="pipeline">
             <div class="pipeline-step" data-step="1"></div>
@@ -1101,7 +1439,7 @@
             />
             <button type="button" class="btn btn-add-recipient" id="recipient-add-btn">Add</button>
           </div>
-          <p class="email-hint" id="email-mode-hint">Add one or more emails. Saved in your browser.</p>
+          <p class="email-hint" id="email-mode-hint">Recipients are saved in your browser.</p>
           <p class="recipient-toast" id="recipient-toast" aria-live="polite"></p>
         </div>
 
@@ -1111,19 +1449,20 @@
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
             EV trends search
           </button>
-          <button type="button" class="btn btn-example" data-prompt="Search EV market data and use Python to summarize key stats.">
+          <button type="button" class="btn btn-example" data-prompt="Research EV market data and break down the key stats.">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
             Search + analyze
           </button>
           <button type="button" class="btn btn-example" data-prompt="Research the latest trends in electric vehicles, run a quick analysis, and email me a summary">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
-            Full pipeline
+            Research, analyze & email
           </button>
         </div>
 
         <button type="button" class="btn btn-clear" id="clear">Clear conversation</button>
-      </aside>
+    </aside>
 
+    <div class="workspace">
       <main id="chat-main">
         <div class="drop-overlay" id="drop-overlay" aria-hidden="true">
           <div class="drop-overlay-inner">
@@ -1168,6 +1507,7 @@
         </form>
       </main>
     </div>
+    </div>
   </div>
 
   <script>
@@ -1190,6 +1530,10 @@
     const emailModeHint = document.getElementById("email-mode-hint");
     const configBanner = document.getElementById("config-banner");
     const recipientToast = document.getElementById("recipient-toast");
+    const sidebar = document.getElementById("sidebar");
+    const settingsToggle = document.getElementById("settings-toggle");
+    const settingsClose = document.getElementById("settings-close");
+    const settingsBackdrop = document.getElementById("settings-backdrop");
     const STORAGE_KEY = "ai-agent-email-recipients";
     const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
     const DEFAULT_PLACEHOLDER = "Research EV trends, analyze them, and email me a summary";
@@ -1197,19 +1541,26 @@
 
     const STARTER_PROMPTS = [
       { label: "Research EV trends in 2025", prompt: "What are the top 3 electric vehicle trends in 2025?", mode: "search_only" },
-      { label: "Analyze market data with Python", prompt: "Search EV market data and use Python to summarize key stats.", mode: "search_and_code" },
-      { label: "Full report to my inbox", prompt: "Research the latest trends in electric vehicles, run a quick analysis, and email me a summary", mode: "full" },
+      { label: "Analyze market data", prompt: "Research EV market data and break down the key stats.", mode: "search_and_code" },
+      { label: "Research, analyze & email", prompt: "Research the latest trends in electric vehicles, run a quick analysis, and email me a summary", mode: "full" },
       { label: "Compare AI agent tools", prompt: "Research the top AI agent frameworks in 2025 and compare their strengths.", mode: "search_only" },
     ];
 
     const QUICK_PROMPTS = [
       { label: "Cross-check with web", prompt: "Cross-check the document summary against current web sources. Highlight matches and contradictions.", mode: "search_only", needsDoc: true },
       { label: "Email summary", prompt: "Email me a summary of what we discussed.", mode: "full" },
-      { label: "Go deeper", prompt: "Dig deeper into this topic with more sources.", mode: null },
       { label: "New topic", prompt: "Research renewable energy investment trends in 2025.", mode: "search_only" },
     ];
+    const CHAT_STORAGE_KEY = "ai-agent-chat-history";
     let history = [];
     let typingEl = null;
+
+    const TOOL_LABELS = {
+      web_search: "Web search",
+      python_repl: "Analyze data",
+      send_email: "Send email",
+      read_document: "Read document",
+    };
 
     const ICONS = {
       user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
@@ -1225,7 +1576,6 @@
     let pendingDocuments = [];
 
     let recipientEmails = [];
-    let emailHintDefault = emailModeHint.textContent;
     let recipientToastTimer = null;
     let workStartedAt = 0;
     let statusTimer = null;
@@ -1309,25 +1659,14 @@
 
     function applyEmailDeliveryHint(delivery) {
       if (!delivery || !emailModeHint) return;
-      emailHintDefault =
-        delivery.mode === "smtp"
-          ? delivery.hint || "Gmail SMTP — send to any email address."
-          : delivery.mode === "brevo"
-            ? delivery.hint || "Brevo API — send to any email (works on Vercel)."
-            : delivery.mode === "test" && delivery.test_recipient_only
-              ? `Test mode: only ${delivery.test_recipient_only} can receive. Use Gmail SMTP to email anyone.`
-              : delivery.hint || "Multiple recipients supported.";
-      if (delivery.mode === "smtp" || delivery.mode === "brevo") {
-        emailModeHint.className = "email-hint";
-        emailModeHint.textContent = emailHintDefault;
-      } else if (delivery.mode === "test" && delivery.test_recipient_only) {
+      if (delivery.mode === "test" && delivery.test_recipient_only) {
         emailModeHint.className = "email-hint email-warning";
         emailModeHint.innerHTML =
           `Test mode: only <strong>${escapeHtml(delivery.test_recipient_only)}</strong> can receive. ` +
           "Set EMAIL_PROVIDER=smtp on Vercel to email anyone.";
       } else {
         emailModeHint.className = "email-hint";
-        emailModeHint.textContent = emailHintDefault;
+        emailModeHint.textContent = "Recipients are saved in your browser.";
       }
     }
 
@@ -1461,7 +1800,7 @@
 
       row.appendChild(bubble);
       chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
+      scrollChatToBottom();
     }
 
     async function processDroppedFiles(fileList) {
@@ -1555,11 +1894,57 @@
       renderPromptButtons(quickPrompts, prompts, "chip");
     }
 
+    function appendEmailSuccess(bubble, emailStatus) {
+      if (!emailStatus || !emailStatus.sent) return;
+      const banner = document.createElement("div");
+      banner.className = "email-success";
+      banner.innerHTML = `${ICONS.send_email}<span>${escapeHtml(emailStatus.message || "Email sent successfully.")}</span>`;
+      bubble.appendChild(banner);
+    }
+
+    function persistChatHistory() {
+      try {
+        sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(history));
+      } catch (_) {
+        /* storage full or unavailable */
+      }
+    }
+
+    function restoreChatHistory() {
+      try {
+        const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
+        if (!saved) return;
+        const items = JSON.parse(saved);
+        if (!Array.isArray(items) || !items.length) return;
+        history = items;
+        items.forEach((message) => {
+          if (message.role === "user") {
+            addUserMessage(message.content.replace(/\n\n\[Attached:.*\]$/, "").trim());
+          } else if (message.role === "assistant") {
+            addMessage("assistant", message.content, {
+              steps: message.steps,
+              model_used: message.model_used,
+              next_steps: message.next_steps,
+              email_status: message.email_status,
+            });
+          }
+        });
+      } catch (_) {
+        history = [];
+      }
+    }
+
+    function scrollChatToBottom() {
+      chat.scrollTop = chat.scrollHeight;
+      const lastRow = chat.querySelector(".message-row:last-of-type");
+      if (lastRow) lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
     function appendNextSteps(bubble, nextSteps) {
       if (!nextSteps || !nextSteps.length) return;
       const wrap = document.createElement("div");
       wrap.className = "next-steps";
-      wrap.innerHTML = '<span class="next-label">Suggested next step</span>';
+      wrap.innerHTML = '<span class="next-label">What next?</span>';
       const chips = document.createElement("div");
       chips.className = "chips";
       nextSteps.forEach((step, i) => {
@@ -1652,8 +2037,9 @@
           details.className = "step";
           details.style.animationDelay = `${i * 0.08}s`;
           const icon = ICONS[step.tool] || ICONS.default;
+          const toolLabel = TOOL_LABELS[step.tool] || step.tool;
           details.innerHTML = `
-            <summary><span class="tool-icon">${icon}</span> ${escapeHtml(step.tool)} <span class="chevron">›</span></summary>
+            <summary><span class="tool-icon">${icon}</span> ${escapeHtml(toolLabel)} <span class="chevron">›</span></summary>
             <pre>${escapeHtml(step.input)}\n\n→ ${escapeHtml(step.output.slice(0, 800))}</pre>
           `;
           stepsWrap.appendChild(details);
@@ -1672,9 +2058,11 @@
         appendNextSteps(bubble, extra.next_steps);
       }
 
+      appendEmailSuccess(bubble, extra.email_status);
+
       row.appendChild(bubble);
       chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
+      scrollChatToBottom();
     }
 
     function showTyping() {
@@ -1688,7 +2076,7 @@
         </div>
       `;
       chat.appendChild(typingEl);
-      chat.scrollTop = chat.scrollHeight;
+      scrollChatToBottom();
     }
 
     function hideTyping() {
@@ -1696,6 +2084,34 @@
         typingEl.remove();
         typingEl = null;
       }
+    }
+
+    function openSettings() {
+      sidebar.classList.add("mobile-open");
+      document.body.classList.add("settings-open");
+      settingsBackdrop.classList.add("visible");
+      settingsBackdrop.setAttribute("aria-hidden", "false");
+      settingsToggle.setAttribute("aria-expanded", "true");
+    }
+
+    function closeSettings() {
+      sidebar.classList.remove("mobile-open");
+      document.body.classList.remove("settings-open");
+      settingsBackdrop.classList.remove("visible");
+      settingsBackdrop.setAttribute("aria-hidden", "true");
+      settingsToggle.setAttribute("aria-expanded", "false");
+    }
+
+    function setupMobileSettings() {
+      settingsToggle.addEventListener("click", () => {
+        if (sidebar.classList.contains("mobile-open")) closeSettings();
+        else openSettings();
+      });
+      settingsClose.addEventListener("click", closeSettings);
+      settingsBackdrop.addEventListener("click", closeSettings);
+      window.addEventListener("resize", () => {
+        if (window.innerWidth > 860) closeSettings();
+      });
     }
 
     function parseError(data) {
@@ -1724,6 +2140,7 @@
           renderRecipientLists();
           showConfigWarnings(data.config_warnings);
           applyEmailDeliveryHint(data.email_delivery);
+          restoreChatHistory();
         } else {
           setStatus("Missing env vars", "error");
         }
@@ -1751,6 +2168,7 @@
 
       addUserMessage(trimmed, attachments);
       history.push({ role: "user", content: historyText });
+      persistChatHistory();
 
       pendingDocuments = [];
       uploadedDocuments = docsForRequest;
@@ -1782,6 +2200,7 @@
           steps: data.steps,
           model_used: data.model_used,
           next_steps: data.next_steps,
+          email_status: data.email_status,
         });
         history.push({
           role: "assistant",
@@ -1789,7 +2208,9 @@
           steps: data.steps,
           model_used: data.model_used,
           next_steps: data.next_steps,
+          email_status: data.email_status,
         });
+        persistChatHistory();
         renderQuickPrompts();
         clearWorkingStatus("Done", "ok");
       } catch (err) {
@@ -1818,6 +2239,7 @@
       history = [];
       uploadedDocuments = [];
       pendingDocuments = [];
+      try { sessionStorage.removeItem(CHAT_STORAGE_KEY); } catch (_) {}
       renderComposerAttachments();
       showEmpty();
       renderQuickPrompts();
@@ -1839,6 +2261,7 @@
 
     modeSelect.addEventListener("change", updatePipeline);
     setupDragAndDrop();
+    setupMobileSettings();
     updatePipeline();
     renderStarters();
     renderQuickPrompts();

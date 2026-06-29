@@ -86,7 +86,7 @@ def test_production_email_hint(page: Page, production_url: str):
     hint = page.locator("#email-mode-hint")
     expect(hint).to_be_visible()
     text = hint.inner_text().lower()
-    assert "smtp" in text or "brevo" in text or "recipients" in text
+    assert "recipients" in text or "test mode" in text
 
 
 def test_production_recipient_chips(page: Page, production_url: str):
