@@ -159,9 +159,11 @@ def health():
                 "hint": "Add them in Vercel → Settings → Environment Variables.",
             },
         )
+    from agent.email_delivery import get_email_pool_size
     from agent.key_pool import get_google_api_keys
 
     gemini_keys = get_google_api_keys()
+    email_pool = get_email_pool_size()
     return {
         "status": "ok",
         "email_delivery": get_email_delivery_info(),
@@ -169,6 +171,8 @@ def health():
         "multi_key_support": True,
         "gemini_key_count": len(gemini_keys),
         "gemini_rotation_ready": len(gemini_keys) > 1,
+        "email_account_count": email_pool,
+        "email_rotation_ready": email_pool > 1,
     }
 
 

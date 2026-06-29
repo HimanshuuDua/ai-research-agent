@@ -51,6 +51,7 @@ def test_production_health(production_url: str):
     assert delivery["mode"] in {"test", "production", "smtp", "brevo"}
     assert "email_recipients" not in data
     assert data.get("gemini_key_count", 0) >= 1
+    assert "email_account_count" in data
 
     if delivery["mode"] == "smtp":
         assert delivery.get("provider") == "smtp"

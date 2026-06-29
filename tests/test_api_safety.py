@@ -23,6 +23,8 @@ def test_health_ok_without_public_emails(client):
     assert "email_recipients" not in data
     assert data["gemini_key_count"] >= 1
     assert "gemini_rotation_ready" in data
+    assert "email_account_count" in data
+    assert "email_rotation_ready" in data
 
 
 def test_session_history_empty(client):

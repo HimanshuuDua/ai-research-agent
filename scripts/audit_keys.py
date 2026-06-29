@@ -1,4 +1,4 @@
-"""Audit Gemini key pool config without printing secrets."""
+"""Audit Gemini and email rotation config without printing secrets."""
 import os
 import sys
 from pathlib import Path
@@ -6,7 +6,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from agent.key_pool import get_google_api_keys, _split_keys
+from agent.config import get_email_provider
+from agent.email_delivery import get_email_pool_size
+from agent.key_pool import get_brevo_api_keys, get_google_api_keys, get_resend_api_keys, get_smtp_accounts, _split_keys
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -22,26 +24,45 @@ def load_env_file(path: Path) -> dict[str, str]:
     return data
 
 
-def audit_file(path: Path) -> dict:
-    data = load_env_file(path)
+def apply_env(data: dict[str, str]) -> None:
     os.environ.clear()
-    if data.get("GOOGLE_API_KEYS"):
-        os.environ["GOOGLE_API_KEYS"] = data["GOOGLE_API_KEYS"]
-    if data.get("GOOGLE_API_KEY"):
-        os.environ["GOOGLE_API_KEY"] = data["GOOGLE_API_KEY"]
-    single = data.get("GOOGLE_API_KEY", "")
-    multi = data.get("GOOGLE_API_KEYS", "")
+    for key, value in data.items():
+        os.environ[key] = value
+
+
+def audit_gemini(data: dict[str, str]) -> dict:
+    apply_env(data)
     keys = get_google_api_keys()
     return {
+        "gemini_key_count": len(keys),
+        "gemini_rotation_ready": len(keys) > 1,
+    }
+
+
+def audit_email(data: dict[str, str]) -> dict:
+    apply_env(data)
+    provider = get_email_provider()
+    pool = get_email_pool_size()
+    smtp_accounts = get_smtp_accounts()
+    return {
+        "email_provider": provider,
+        "email_account_count": pool,
+        "email_rotation_ready": pool > 1,
+        "smtp_accounts": len(smtp_accounts),
+        "brevo_keys": len(get_brevo_api_keys()),
+        "resend_keys": len(get_resend_api_keys()),
+    }
+
+
+def audit_file(path: Path) -> dict:
+    data = load_env_file(path)
+    if not data:
+        return {"file": str(path), "exists": False}
+    return {
         "file": str(path),
-        "has_GOOGLE_API_KEYS": bool(multi),
-        "has_GOOGLE_API_KEY": bool(single),
-        "GOOGLE_API_KEY_len": len(single),
-        "GOOGLE_API_KEY_commas": single.count(","),
-        "GOOGLE_API_KEYS_count": len(_split_keys(multi)) if multi else 0,
-        "pool_count": len(keys),
-        "pool_unique": len(set(keys)),
-        "rotation_ready": len(keys) > 1,
+        "exists": True,
+        **audit_gemini(data),
+        **audit_email(data),
     }
 
 

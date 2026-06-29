@@ -3,7 +3,7 @@ import re
 
 from dotenv import load_dotenv
 
-from agent.key_pool import get_google_api_keys
+from agent.key_pool import get_brevo_api_keys, get_google_api_keys, get_resend_api_keys, get_smtp_accounts
 
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -37,14 +37,15 @@ BREVO_REQUIRED_ENV_KEYS = [
 
 def get_email_provider() -> str:
     explicit = os.getenv("EMAIL_PROVIDER", "").strip().lower()
-    has_smtp = bool(os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"))
+    has_smtp = bool(get_smtp_accounts())
 
     if explicit == "brevo":
         return "brevo"
     if explicit == "smtp":
         return "smtp"
-    if os.getenv("BREVO_API_KEY") and not has_smtp:
-        return "brevo"
+    if os.getenv("BREVO_API_KEY") or get_brevo_api_keys():
+        if not has_smtp and explicit != "smtp":
+            return "brevo"
     if has_smtp:
         return "smtp"
     if explicit == "resend":
@@ -60,13 +61,18 @@ def get_missing_env_keys() -> list[str]:
         missing.append("SERPAPI_API_KEY")
 
     if get_email_provider() == "smtp":
-        missing.extend(key for key in SMTP_REQUIRED_ENV_KEYS if not os.getenv(key))
+        if not get_smtp_accounts():
+            missing.extend(key for key in SMTP_REQUIRED_ENV_KEYS if not os.getenv(key))
     elif get_email_provider() == "brevo":
-        missing.extend(key for key in BREVO_REQUIRED_ENV_KEYS if not os.getenv(key))
+        if not get_brevo_api_keys():
+            missing.append("BREVO_API_KEY")
         if not os.getenv("BREVO_FROM_EMAIL") and not os.getenv("SMTP_USER"):
             missing.append("BREVO_FROM_EMAIL")
     else:
-        missing.extend(key for key in RESEND_REQUIRED_ENV_KEYS if not os.getenv(key))
+        if not get_resend_api_keys():
+            missing.append("RESEND_API_KEY")
+        if not os.getenv("RESEND_FROM_EMAIL"):
+            missing.append("RESEND_FROM_EMAIL")
 
     if not get_valid_email_recipients():
         missing.append("RESEND_TO_EMAIL")
