@@ -14,7 +14,11 @@ def get_google_api_keys() -> list[str]:
         if keys:
             return keys
     single = os.getenv("GOOGLE_API_KEY", "").strip()
-    return [single] if single else []
+    if not single:
+        return []
+    if "," in single:
+        return _split_keys(single)
+    return [single]
 
 
 def get_brevo_api_keys() -> list[str]:

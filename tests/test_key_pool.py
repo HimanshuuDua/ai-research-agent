@@ -11,3 +11,9 @@ def test_google_keys_fallback_single(monkeypatch):
     monkeypatch.setenv("GOOGLE_API_KEY", "single-key")
     monkeypatch.delenv("GOOGLE_API_KEYS", raising=False)
     assert get_google_api_keys() == ["single-key"]
+
+
+def test_google_keys_split_comma_in_single_env(monkeypatch):
+    monkeypatch.delenv("GOOGLE_API_KEYS", raising=False)
+    monkeypatch.setenv("GOOGLE_API_KEY", "key-a,key-b,key-c")
+    assert get_google_api_keys() == ["key-a", "key-b", "key-c"]

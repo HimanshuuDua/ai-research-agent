@@ -159,11 +159,16 @@ def health():
                 "hint": "Add them in Vercel → Settings → Environment Variables.",
             },
         )
+    from agent.key_pool import get_google_api_keys
+
+    gemini_keys = get_google_api_keys()
     return {
         "status": "ok",
         "email_delivery": get_email_delivery_info(),
         "config_warnings": get_email_config_warnings(),
         "multi_key_support": True,
+        "gemini_key_count": len(gemini_keys),
+        "gemini_rotation_ready": len(gemini_keys) > 1,
     }
 
 
