@@ -69,7 +69,7 @@ def test_production_homepage(page: Page, production_url: str):
     page.goto(production_url, wait_until="domcontentloaded")
     expect(page.locator("h1")).to_have_text("AI Research Agent")
     expect(page.locator("#prompt")).to_be_visible()
-    expect(page.locator("#recipient-add")).to_be_visible()
+    expect(page.locator("#composer-email")).to_be_visible()
     page.wait_for_function(
         "() => ['API ready', 'Missing env vars'].includes("
         "document.querySelector('#status .label')?.textContent)",
@@ -77,16 +77,14 @@ def test_production_homepage(page: Page, production_url: str):
     )
 
 
-def test_production_email_hint(page: Page, production_url: str):
+def test_production_composer_email(page: Page, production_url: str):
     page.goto(production_url, wait_until="domcontentloaded")
     page.wait_for_function(
         "() => document.querySelector('#status .label')?.textContent === 'API ready'",
         timeout=15000,
     )
-    hint = page.locator("#email-mode-hint")
-    expect(hint).to_be_visible()
-    text = hint.inner_text().lower()
-    assert "recipients" in text or "test mode" in text
+    expect(page.locator("#composer-email")).to_be_visible()
+    expect(page.locator("#composer-email-add")).to_be_visible()
 
 
 def test_production_recipient_chips(page: Page, production_url: str):
@@ -95,9 +93,10 @@ def test_production_recipient_chips(page: Page, production_url: str):
         "() => document.querySelector('#status .label')?.textContent === 'API ready'",
         timeout=15000,
     )
-    page.fill("#recipient-add", "qa-check@example.com")
-    page.click("#recipient-add-btn")
-    chip = page.locator("#recipient-list .recipient-chip", has_text="qa-check@example.com")
+    page.select_option("#mode", "full")
+    page.fill("#composer-email", "qa-check@example.com")
+    page.click("#composer-email-add")
+    chip = page.locator("#composer-recipients .recipient-chip", has_text="qa-check@example.com")
     expect(chip).to_be_visible()
 
 

@@ -44,7 +44,6 @@ def test_mobile_settings_drawer(mobile_page: Page):
     expect(sidebar).to_have_class(re.compile(r"mobile-open"))
     expect(backdrop).to_have_class(re.compile(r"visible"))
     expect(mobile_page.locator("#mode")).to_be_visible()
-    expect(mobile_page.locator("#recipient-add")).to_be_visible()
 
     mobile_page.locator("#settings-close").click()
     expect(sidebar).not_to_have_class(re.compile(r"mobile-open"))

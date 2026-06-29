@@ -1507,22 +1507,6 @@
         </div>
 
         <div>
-          <div class="panel-title">Email recipients</div>
-          <div class="recipient-list" id="recipient-list"></div>
-          <div class="recipient-add-row">
-            <input
-              type="email"
-              id="recipient-add"
-              placeholder="Add receiver email"
-              autocomplete="email"
-            />
-            <button type="button" class="btn btn-add-recipient" id="recipient-add-btn">Add</button>
-          </div>
-          <p class="email-hint" id="email-mode-hint">Recipients are saved in your browser.</p>
-          <p class="recipient-toast" id="recipient-toast" aria-live="polite"></p>
-        </div>
-
-        <div>
           <div class="panel-title">Try an example</div>
           <button type="button" class="btn btn-example" data-prompt="What are the top 3 electric vehicle trends in 2025?">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -1607,16 +1591,11 @@
     const statusEl = document.getElementById("status");
     const sendBtn = document.getElementById("send");
     const pipeline = document.getElementById("pipeline");
-    const emailRecipientsInput = document.getElementById("recipient-add");
-    const recipientAddBtn = document.getElementById("recipient-add-btn");
-    const recipientList = document.getElementById("recipient-list");
     const composerRecipients = document.getElementById("composer-recipients");
     const starterChips = document.getElementById("starter-chips");
     const quickPrompts = document.getElementById("quick-prompts");
     const composerAttachments = document.getElementById("composer-attachments");
-    const emailModeHint = document.getElementById("email-mode-hint");
     const configBanner = document.getElementById("config-banner");
-    const recipientToast = document.getElementById("recipient-toast");
     const sidebar = document.getElementById("sidebar");
     const settingsToggle = document.getElementById("settings-toggle");
     const settingsClose = document.getElementById("settings-close");
@@ -1669,7 +1648,6 @@
     let pendingDocuments = [];
 
     let recipientEmails = [];
-    let recipientToastTimer = null;
     let errorToastTimer = null;
     let workStartedAt = 0;
     let statusTimer = null;
@@ -1713,13 +1691,12 @@
     }
 
     function renderRecipientLists() {
-      recipientList.innerHTML = "";
       composerRecipients.querySelectorAll(".recipient-chip").forEach((el) => el.remove());
 
       recipientEmails.forEach((email, index) => {
-        const sidebarChip = document.createElement("div");
-        sidebarChip.className = "recipient-chip";
-        sidebarChip.innerHTML = `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>`;
+        const composerChip = document.createElement("div");
+        composerChip.className = "recipient-chip";
+        composerChip.innerHTML = `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>`;
         const removeBtn = document.createElement("button");
         removeBtn.type = "button";
         removeBtn.setAttribute("aria-label", "Remove recipient");
@@ -1729,12 +1706,7 @@
           renderRecipientLists();
           saveRecipientEmails();
         });
-        sidebarChip.appendChild(removeBtn);
-        recipientList.appendChild(sidebarChip);
-
-        const composerChip = document.createElement("div");
-        composerChip.className = "recipient-chip";
-        composerChip.innerHTML = `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>`;
+        composerChip.appendChild(removeBtn);
         composerRecipients.appendChild(composerChip);
       });
 
@@ -1742,15 +1714,6 @@
         composerEmailInput.placeholder = recipientEmails[0];
       }
       updateComposerRecipientsVisibility();
-    }
-
-    function showRecipientToast(message, isError = false) {
-      recipientToast.textContent = message;
-      recipientToast.style.color = isError ? "#f87171" : "var(--success)";
-      clearTimeout(recipientToastTimer);
-      recipientToastTimer = setTimeout(() => {
-        recipientToast.textContent = "";
-      }, 3500);
     }
 
     function showConfigWarnings(warnings) {
@@ -1766,15 +1729,14 @@
     }
 
     function applyEmailDeliveryHint(delivery) {
-      if (!delivery || !emailModeHint) return;
-      if (delivery.mode === "test" && delivery.test_recipient_only) {
-        emailModeHint.className = "email-hint email-warning";
-        emailModeHint.innerHTML =
-          `Test mode: only <strong>${escapeHtml(delivery.test_recipient_only)}</strong> can receive. ` +
-          "Set EMAIL_PROVIDER=smtp on Vercel to email anyone.";
-      } else {
-        emailModeHint.className = "email-hint";
-        emailModeHint.textContent = "Recipients are saved in your browser.";
+      if (!delivery || delivery.mode !== "test" || !delivery.test_recipient_only) return;
+      const message =
+        `Resend test mode: only ${delivery.test_recipient_only} can receive email. ` +
+        "Use Gmail SMTP on Vercel to email anyone.";
+      const current = configBanner.textContent.trim();
+      if (!current.includes(delivery.test_recipient_only)) {
+        configBanner.textContent = current ? `${current} ${message}` : message;
+        configBanner.classList.add("visible");
       }
     }
 
@@ -1782,19 +1744,18 @@
       const email = rawEmail.trim().toLowerCase();
       if (!email) return false;
       if (!isValidEmail(email)) {
-        showRecipientToast("Enter a valid email address.", true);
+        showErrorToast("Enter a valid email address.");
         return false;
       }
       if (recipientEmails.includes(email)) {
-        emailRecipientsInput.value = "";
-        showRecipientToast("That email is already in the list.", true);
+        if (composerEmailInput) composerEmailInput.value = "";
+        showErrorToast("That email is already in the list.");
         return false;
       }
       recipientEmails.push(email);
-      emailRecipientsInput.value = "";
+      if (composerEmailInput) composerEmailInput.value = "";
       renderRecipientLists();
       saveRecipientEmails();
-      showRecipientToast(`Added ${email}`);
       return true;
     }
 
@@ -2375,19 +2336,6 @@
         fileInput.value = "";
       }
     });
-
-    recipientAddBtn.addEventListener("click", () => {
-      addRecipientEmail(emailRecipientsInput.value);
-    });
-
-    emailRecipientsInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        addRecipientEmail(emailRecipientsInput.value);
-      }
-    });
-
-    emailRecipientsInput.addEventListener("blur", saveEmailRecipients);
 
     modeSelect.addEventListener("change", updatePipeline);
     setupDragAndDrop();

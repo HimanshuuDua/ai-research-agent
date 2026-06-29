@@ -22,8 +22,8 @@ def test_homepage_loads(page: Page, live_server: str):
     expect(page.locator("#send")).to_be_visible()
     expect(page.locator("#mode")).to_be_visible()
     expect(page.locator("#chat-main")).to_be_visible()
-    expect(page.locator("#recipient-add")).to_be_visible()
-    expect(page.locator("#recipient-add-btn")).to_be_visible()
+    expect(page.locator("#composer-email")).to_be_visible()
+    expect(page.locator("#composer-email-add")).to_be_visible()
 
 
 def test_add_recipient_email(page: Page, live_server: str):
@@ -31,21 +31,20 @@ def test_add_recipient_email(page: Page, live_server: str):
     page.wait_for_function(
         "() => document.querySelector('#status .label')?.textContent === 'API ready'"
     )
-    page.fill("#recipient-add", "friend@example.com")
-    page.click("#recipient-add-btn")
-    chip = page.locator("#recipient-list .recipient-chip", has_text="friend@example.com")
+    page.select_option("#mode", "full")
+    page.fill("#composer-email", "friend@example.com")
+    page.click("#composer-email-add")
+    chip = page.locator("#composer-recipients .recipient-chip", has_text="friend@example.com")
     expect(chip).to_be_visible()
 
 
-def test_email_test_mode_hint(page: Page, live_server: str):
+def test_composer_email_visible(page: Page, live_server: str):
     page.goto(live_server)
     page.wait_for_function(
         "() => document.querySelector('#status .label')?.textContent === 'API ready'"
     )
-    hint = page.locator("#email-mode-hint")
-    expect(hint).to_be_visible()
-    text = hint.inner_text().lower()
-    assert "recipients" in text or "test mode" in text
+    expect(page.locator("#composer-email")).to_be_visible()
+    expect(page.locator("#composer-email-add")).to_be_visible()
 
 
 def test_document_drop_attaches_without_auto_send(page: Page, live_server: str, tmp_path):
