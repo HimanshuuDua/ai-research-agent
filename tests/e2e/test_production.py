@@ -118,8 +118,17 @@ def test_production_search_only_chat(page: Page, production_url: str):
     started = time.time()
     page.click("#send")
 
-    page.wait_for_selector(".message-row.assistant .bubble", timeout=120_000)
+    page.wait_for_selector(
+        ".message-row.assistant .bubble, .message-row.system .bubble",
+        timeout=120_000,
+    )
     elapsed = time.time() - started
+
+    if page.locator(".message-row.system .bubble").count():
+        system_text = page.locator(".message-row.system .bubble").last.inner_text().lower()
+        if "quota" in system_text:
+            pytest.skip("Gemini API quota exceeded on production — retry later or set GEMINI_MODEL=gemini-2.5-flash-lite on Vercel")
+        pytest.fail(f"Chat returned an error instead of a reply: {system_text[:200]}")
 
     assistant_text = page.locator(".message-row.assistant .bubble").last.inner_text()
     assert len(assistant_text.strip()) > 20, "Assistant reply was empty"
