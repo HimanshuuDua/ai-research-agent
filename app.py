@@ -93,7 +93,7 @@ if "messages" not in st.session_state:
 if "documents" not in st.session_state:
     st.session_state.documents = []
 if "recipient_list" not in st.session_state:
-    st.session_state.recipient_list = list(get_email_recipients())
+    st.session_state.recipient_list = []
 
 
 def is_valid_email(email: str) -> bool:

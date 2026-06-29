@@ -16,7 +16,9 @@ from agent.config import (
 )
 from agent.context import set_active_documents, set_active_recipients
 from agent.errors import AgentServiceError, friendly_agent_error
+from agent.key_pool import get_google_api_keys
 from agent.llm import create_llm
+from agent.security import SECURITY_SYSTEM_RULE
 from agent.tools import (
     get_document_reader_tool,
     get_email_tool,
@@ -52,7 +54,7 @@ Keep emails concise; research replies should be thorough but well organized."""
 
 PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", SYSTEM_PROMPT),
+        ("system", SYSTEM_PROMPT + SECURITY_SYSTEM_RULE),
         MessagesPlaceholder("chat_history", optional=True),
         ("human", "{input}"),
         MessagesPlaceholder("agent_scratchpad"),
@@ -220,8 +222,12 @@ def _normalize_chat_history(chat_history: list | None, max_messages: int = 8) ->
     return normalized
 
 
-def create_agent(mode: ToolMode = "full", model: str | None = None) -> AgentExecutor:
-    llm = create_llm(model)
+def create_agent(
+    mode: ToolMode = "full",
+    model: str | None = None,
+    google_api_key: str | None = None,
+) -> AgentExecutor:
+    llm = create_llm(model, google_api_key=google_api_key)
     tools = _build_tools(mode)
     agent = create_tool_calling_agent(llm, tools, PROMPT)
     max_time = get_agent_max_execution_time()
@@ -246,6 +252,9 @@ def run_agent(
     documents: list[dict] | None = None,
 ) -> AgentResult:
     models_to_try = [PRIMARY_MODEL, FALLBACK_MODEL]
+    api_keys = get_google_api_keys()
+    if not api_keys:
+        raise AgentServiceError("Missing GOOGLE_API_KEY.")
     last_error: Exception | None = None
 
     agent_input = user_input
@@ -258,37 +267,36 @@ def run_agent(
             "Use read_document to access their content when relevant.]"
         )
 
-    for model_name in models_to_try:
-        try:
-            set_active_recipients(email_recipients)
-            set_active_documents(documents)
-            executor = create_agent(mode, model=model_name)
-            result = executor.invoke(
-                {
-                    "input": agent_input,
-                    "chat_history": _normalize_chat_history(chat_history),
-                }
-            )
-            steps = _steps_from_intermediate(result.get("intermediate_steps", []))
-            output = result.get("output") or "Task completed."
-            email_status = email_status_from_steps(steps)
-            if email_status and email_status["sent"] and "sent successfully" not in output.lower():
-                output = f"{output.rstrip()}\n\n✓ {email_status['message']}"
-            return AgentResult(
-                output=output,
-                steps=steps,
-                model_used=model_name,
-                next_steps=suggest_next_steps(mode, steps),
-            )
-        except ResourceExhausted as exc:
-            last_error = exc
-            if model_name == FALLBACK_MODEL:
-                break
-            continue
-        except Exception as exc:
-            raise friendly_agent_error(exc) from exc
-        finally:
-            set_active_recipients(None)
-            set_active_documents(None)
+    for api_key in api_keys:
+        for model_name in models_to_try:
+            try:
+                set_active_recipients(email_recipients)
+                set_active_documents(documents)
+                executor = create_agent(mode, model=model_name, google_api_key=api_key)
+                result = executor.invoke(
+                    {
+                        "input": agent_input,
+                        "chat_history": _normalize_chat_history(chat_history),
+                    }
+                )
+                steps = _steps_from_intermediate(result.get("intermediate_steps", []))
+                output = result.get("output") or "Task completed."
+                email_status = email_status_from_steps(steps)
+                if email_status and email_status["sent"] and "sent successfully" not in output.lower():
+                    output = f"{output.rstrip()}\n\n✓ {email_status['message']}"
+                return AgentResult(
+                    output=output,
+                    steps=steps,
+                    model_used=model_name,
+                    next_steps=suggest_next_steps(mode, steps),
+                )
+            except ResourceExhausted as exc:
+                last_error = exc
+                continue
+            except Exception as exc:
+                raise friendly_agent_error(exc) from exc
+            finally:
+                set_active_recipients(None)
+                set_active_documents(None)
 
     raise friendly_agent_error(last_error or AgentServiceError("Gemini quota exceeded."))

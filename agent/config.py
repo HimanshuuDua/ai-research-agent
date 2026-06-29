@@ -3,6 +3,8 @@ import re
 
 from dotenv import load_dotenv
 
+from agent.key_pool import get_google_api_keys
+
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 load_dotenv()
@@ -51,7 +53,11 @@ def get_email_provider() -> str:
 
 
 def get_missing_env_keys() -> list[str]:
-    missing = [key for key in BASE_REQUIRED_ENV_KEYS if not os.getenv(key)]
+    missing: list[str] = []
+    if not get_google_api_keys():
+        missing.append("GOOGLE_API_KEY")
+    if not os.getenv("SERPAPI_API_KEY"):
+        missing.append("SERPAPI_API_KEY")
 
     if get_email_provider() == "smtp":
         missing.extend(key for key in SMTP_REQUIRED_ENV_KEYS if not os.getenv(key))
@@ -202,7 +208,7 @@ def get_email_delivery_info() -> dict:
     provider = get_email_provider()
     info = {
         "provider": provider,
-        "default_recipients": get_valid_email_recipients(),
+        "default_recipients": [],
     }
 
     if provider == "smtp":

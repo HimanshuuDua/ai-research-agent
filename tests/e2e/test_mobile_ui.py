@@ -50,16 +50,19 @@ def test_mobile_settings_drawer(mobile_page: Page):
     expect(sidebar).not_to_have_class(re.compile(r"mobile-open"))
 
 
-def test_mobile_add_recipient_in_drawer(mobile_page: Page):
-    mobile_page.locator("#settings-toggle").click()
-    mobile_page.fill("#recipient-add", "mobile@example.com")
-    mobile_page.click("#recipient-add-btn")
+def test_mobile_composer_has_attach_and_email(mobile_page: Page):
+    expect(mobile_page.locator("#attach-btn")).to_be_visible()
+    expect(mobile_page.locator("#composer-email")).to_be_visible()
+    expect(mobile_page.locator("#error-toast")).to_be_attached()
 
-    chip = mobile_page.locator("#recipient-list .recipient-chip", has_text="mobile@example.com")
-    expect(chip).to_be_visible()
 
-    mobile_page.locator("#settings-close").click()
-    expect(mobile_page.locator("#chat-main")).to_be_visible()
+def test_mobile_add_email_in_composer(mobile_page: Page):
+    mobile_page.fill("#composer-email", "mobile-user@example.com")
+    mobile_page.click("#composer-email-add")
+    saved = mobile_page.evaluate(
+        "() => JSON.parse(localStorage.getItem('ai-agent-email-recipients') || '[]')"
+    )
+    assert "mobile-user@example.com" in saved
 
 
 def test_mobile_no_horizontal_overflow(mobile_page: Page):
@@ -78,7 +81,7 @@ def test_mobile_user_message_stays_in_viewport(mobile_page: Page):
     mobile_page.click("#send")
 
     mobile_page.wait_for_selector(".message-row.user .bubble", timeout=5000)
-    user_bubble = mobile_page.locator(".message-row.user .bubble").first
+    user_bubble = mobile_page.locator(".message-row.user .bubble").last
     box = user_bubble.bounding_box()
     viewport = mobile_page.viewport_size
     assert box and viewport

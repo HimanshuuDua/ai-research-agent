@@ -685,11 +685,88 @@
     }
 
     .message-row.system .bubble {
-      background: transparent;
-      border: 1px dashed rgba(248, 113, 113, 0.35);
-      color: #fca5a5;
-      font-size: 0.85rem;
-      padding: 0.65rem 0.85rem;
+      background: rgba(127, 29, 29, 0.35);
+      border: 1px solid rgba(248, 113, 113, 0.55);
+      color: #fecaca;
+      font-size: 0.88rem;
+      padding: 0.75rem 0.9rem;
+      max-width: 100%;
+    }
+
+    .error-toast {
+      display: none;
+      position: fixed;
+      bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+      left: max(0.75rem, env(safe-area-inset-left, 0px));
+      right: max(0.75rem, env(safe-area-inset-right, 0px));
+      z-index: 200;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      background: rgba(127, 29, 29, 0.95);
+      border: 1px solid rgba(248, 113, 113, 0.65);
+      color: #fecaca;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    .error-toast.visible {
+      display: block;
+      animation: fadeUp 0.25s var(--ease);
+    }
+
+    .composer-email-row {
+      display: flex;
+      gap: 0.45rem;
+      align-items: center;
+    }
+
+    .composer-email-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.6rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(7, 11, 20, 0.75);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+    }
+
+    .composer-email-row button {
+      width: auto;
+      flex-shrink: 0;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .attach-btn {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(7, 11, 20, 0.75);
+      color: #94a3b8;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .attach-btn:hover {
+      border-color: rgba(59, 130, 246, 0.45);
+      color: #bfdbfe;
+    }
+
+    .attach-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    #file-input {
+      display: none;
     }
 
     .meta {
@@ -1404,6 +1481,8 @@
       </div>
     </header>
 
+    <div id="error-toast" class="error-toast" role="alert" aria-live="assertive"></div>
+
     <div id="config-banner" class="config-banner" role="alert" aria-live="polite"></div>
 
     <div class="app-shell">
@@ -1493,8 +1572,16 @@
           <div class="composer-recipients" id="composer-recipients">
             <span class="composer-recipients-label">To</span>
           </div>
+          <div class="composer-email-row" id="composer-email-row">
+            <input type="email" id="composer-email" placeholder="Your email (for reports)" autocomplete="email" />
+            <button type="button" class="btn btn-add-recipient" id="composer-email-add">Save</button>
+          </div>
           <div class="composer-attachments" id="composer-attachments"></div>
           <div class="composer-row">
+            <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.markdown,.csv,.json,.html,.htm,.rtf" multiple />
+            <button type="button" class="attach-btn" id="attach-btn" aria-label="Attach document">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </button>
             <div class="input-wrap">
               <input type="text" id="prompt" placeholder="Research EV trends, analyze them, and email me a summary" autocomplete="off" />
             </div>
@@ -1534,6 +1621,12 @@
     const settingsToggle = document.getElementById("settings-toggle");
     const settingsClose = document.getElementById("settings-close");
     const settingsBackdrop = document.getElementById("settings-backdrop");
+    const errorToast = document.getElementById("error-toast");
+    const attachBtn = document.getElementById("attach-btn");
+    const fileInput = document.getElementById("file-input");
+    const composerEmailInput = document.getElementById("composer-email");
+    const composerEmailAddBtn = document.getElementById("composer-email-add");
+    const composerEmailRow = document.getElementById("composer-email-row");
     const STORAGE_KEY = "ai-agent-email-recipients";
     const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
     const DEFAULT_PLACEHOLDER = "Research EV trends, analyze them, and email me a summary";
@@ -1577,6 +1670,7 @@
 
     let recipientEmails = [];
     let recipientToastTimer = null;
+    let errorToastTimer = null;
     let workStartedAt = 0;
     let statusTimer = null;
 
@@ -1593,15 +1687,26 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(recipientEmails));
     }
 
+    function showErrorToast(message) {
+      if (!message) return;
+      errorToast.textContent = message;
+      errorToast.classList.add("visible");
+      clearTimeout(errorToastTimer);
+      errorToastTimer = setTimeout(() => {
+        errorToast.classList.remove("visible");
+        errorToast.textContent = "";
+      }, 8000);
+    }
+
     function loadRecipientEmails(defaults = []) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (!saved) {
-        recipientEmails = [...defaults];
+        recipientEmails = [];
         return;
       }
       try {
         const parsed = JSON.parse(saved);
-        recipientEmails = Array.isArray(parsed) ? parsed : defaults;
+        recipientEmails = Array.isArray(parsed) ? parsed : [];
       } catch {
         recipientEmails = saved.split(",").map((email) => email.trim()).filter(Boolean);
       }
@@ -1633,6 +1738,9 @@
         composerRecipients.appendChild(composerChip);
       });
 
+      if (recipientEmails.length && composerEmailInput) {
+        composerEmailInput.placeholder = recipientEmails[0];
+      }
       updateComposerRecipientsVisibility();
     }
 
@@ -1691,8 +1799,9 @@
     }
 
     function updateComposerRecipientsVisibility() {
-      const show = modeSelect.value === "full" && recipientEmails.length > 0;
-      composerRecipients.classList.toggle("visible", show);
+      const showChips = modeSelect.value === "full" && recipientEmails.length > 0;
+      composerRecipients.classList.toggle("visible", showChips);
+      composerEmailRow.style.display = "";
     }
 
     function getEmailRecipients() {
@@ -1910,27 +2019,30 @@
       }
     }
 
-    function restoreChatHistory() {
+    async function loadServerHistory() {
       try {
-        const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
-        if (!saved) return;
-        const items = JSON.parse(saved);
-        if (!Array.isArray(items) || !items.length) return;
-        history = items;
-        items.forEach((message) => {
+        const res = await fetch("/api/session/history");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.messages || !data.messages.length) return;
+        history = data.messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+          mode: msg.mode,
+          model_used: msg.model_used,
+        }));
+        chat.querySelectorAll(".message-row, .typing, .next-steps").forEach((el) => el.remove());
+        history.forEach((message) => {
           if (message.role === "user") {
             addUserMessage(message.content.replace(/\n\n\[Attached:.*\]$/, "").trim());
           } else if (message.role === "assistant") {
             addMessage("assistant", message.content, {
-              steps: message.steps,
               model_used: message.model_used,
-              next_steps: message.next_steps,
-              email_status: message.email_status,
             });
           }
         });
       } catch (_) {
-        history = [];
+        /* offline or storage unavailable */
       }
     }
 
@@ -2127,20 +2239,15 @@
         const data = await res.json();
         if (data.status === "ok") {
           setStatus("API ready", "ok");
-          const saved = localStorage.getItem(STORAGE_KEY);
-          const defaults = (data.email_recipients || []).map((email) => email.toLowerCase());
-          if (saved) {
-            loadRecipientEmails(defaults);
-            if (!recipientEmails.length && defaults.length) {
-              recipientEmails = [...defaults];
-            }
-          } else {
-            recipientEmails = [...defaults];
+          loadRecipientEmails();
+          if (!recipientEmails.length) {
+            const savedEmail = localStorage.getItem(STORAGE_KEY);
+            if (savedEmail) loadRecipientEmails();
           }
           renderRecipientLists();
           showConfigWarnings(data.config_warnings);
           applyEmailDeliveryHint(data.email_delivery);
-          restoreChatHistory();
+          await loadServerHistory();
         } else {
           setStatus("Missing env vars", "error");
         }
@@ -2215,7 +2322,9 @@
         clearWorkingStatus("Done", "ok");
       } catch (err) {
         hideTyping();
-        addMessage("system", err.message || "Request failed");
+        const msg = err.message || "Request failed";
+        addMessage("system", msg);
+        showErrorToast(msg);
         clearWorkingStatus("Error", "error");
       } finally {
         sendBtn.disabled = false;
@@ -2244,6 +2353,27 @@
       showEmpty();
       renderQuickPrompts();
       setStatus("Chat cleared", "");
+    });
+
+    composerEmailAddBtn.addEventListener("click", () => {
+      if (addRecipientEmail(composerEmailInput.value)) {
+        composerEmailInput.value = "";
+      }
+    });
+
+    composerEmailInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        composerEmailAddBtn.click();
+      }
+    });
+
+    attachBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      if (fileInput.files?.length) {
+        await processDroppedFiles(fileInput.files);
+        fileInput.value = "";
+      }
     });
 
     recipientAddBtn.addEventListener("click", () => {

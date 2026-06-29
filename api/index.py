@@ -3,7 +3,7 @@ import re
 import sys
 import traceback
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -40,9 +40,34 @@ from agent.context import parse_recipient_string  # noqa: E402
 from agent.documents import MAX_UPLOAD_BYTES, extract_document  # noqa: E402
 from agent.email_delivery import deliver_email, verify_smtp_login  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
+from agent.security import redact_env_values, sanitize_assistant_output  # noqa: E402
+from agent.storage import (  # noqa: E402
+    append_message,
+    get_session_messages,
+    init_db,
+    log_usage,
+    session_key_from_request,
+)
 
+init_db()
 app = FastAPI()
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
+def _session_context(request: Request) -> tuple[str, str]:
+    ip = _client_ip(request)
+    session_key = session_key_from_request(ip, request.headers.get("user-agent", ""))
+    ip_hash = session_key[:16]
+    return session_key, ip_hash
 
 
 def _email_was_sent(steps: list) -> bool:
@@ -136,10 +161,27 @@ def health():
         )
     return {
         "status": "ok",
-        "email_recipients": get_valid_email_recipients(),
-        "email_count": len(get_valid_email_recipients()),
         "email_delivery": get_email_delivery_info(),
         "config_warnings": get_email_config_warnings(),
+        "multi_key_support": True,
+    }
+
+
+@app.get("/api/session/history")
+def session_history(request: Request):
+    session_key, _ = _session_context(request)
+    messages = get_session_messages(session_key)
+    return {
+        "session_key": session_key[:8],
+        "messages": [
+            {
+                "role": m["role"],
+                "content": m["content"],
+                "mode": m.get("mode"),
+                "model_used": m.get("model_used"),
+            }
+            for m in messages
+        ],
     }
 
 
@@ -203,7 +245,7 @@ async def upload_document(file: UploadFile = File(...)):
 
 
 @app.post("/api/chat")
-def chat(body: ChatRequest):
+def chat(body: ChatRequest, request: Request):
     missing = get_missing_env_keys()
     if missing:
         raise HTTPException(
@@ -226,11 +268,24 @@ def chat(body: ChatRequest):
         )
 
     try:
-        recipients = merge_recipients_from_prompt(
-            body.prompt,
-            ui_recipients or get_valid_email_recipients(),
-        ) or None
+        recipients = merge_recipients_from_prompt(body.prompt, ui_recipients) or None
+        if body.mode == "full" and not recipients:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Add your email address before sending.",
+                    "hint": "Enter your email in the composer or settings panel.",
+                },
+            )
         documents = [doc.model_dump() for doc in body.documents] or None
+        session_key, ip_hash = _session_context(request)
+        append_message(
+            session_key,
+            ip_hash,
+            "user",
+            redact_env_values(body.prompt.strip()),
+            mode=body.mode,
+        )
         result = run_agent(
             body.prompt.strip(),
             mode=body.mode,
@@ -241,16 +296,37 @@ def chat(body: ChatRequest):
         if body.mode == "full":
             result = _ensure_email_delivered(result, recipients, body.prompt.strip())
         email_status = email_status_from_steps(result.steps)
+        safe_output = sanitize_assistant_output(result.output)
+        append_message(
+            session_key,
+            ip_hash,
+            "assistant",
+            redact_env_values(safe_output),
+            mode=body.mode,
+            model_used=result.model_used,
+        )
+        log_usage(
+            session_key,
+            ip_hash,
+            redact_env_values(body.prompt.strip()),
+            redact_env_values(safe_output),
+            mode=body.mode,
+            model_used=result.model_used,
+            email_status=email_status,
+        )
         return {
-            "output": result.output,
+            "output": safe_output,
             "model_used": result.model_used,
             "next_steps": result.next_steps,
             "email_status": email_status,
+            "session_key": session_key[:8],
             "steps": [
                 {"tool": s.tool, "input": s.input, "output": s.output}
                 for s in result.steps
             ],
         }
+    except HTTPException:
+        raise
     except AgentServiceError as exc:
         raise HTTPException(
             status_code=503,

@@ -57,6 +57,8 @@ def test_document_drop_attaches_without_auto_send(page: Page, live_server: str, 
     doc_path = tmp_path / "sample.txt"
     doc_path.write_text("Playwright test document content.", encoding="utf-8")
 
+    user_count_before = page.locator(".message-row.user").count()
+
     page.evaluate(
         """async ([selector, name, content]) => {
             const target = document.querySelector(selector);
@@ -74,5 +76,5 @@ def test_document_drop_attaches_without_auto_send(page: Page, live_server: str, 
         timeout=15000,
     )
     expect(page.locator(".pending-doc")).to_contain_text("sample.txt")
-    expect(page.locator(".message-row.assistant")).to_have_count(0)
-    expect(page.locator(".message-row.user")).to_have_count(0)
+    expect(page.locator(".message-row.user")).to_have_count(user_count_before)
+    expect(page.locator(".typing")).to_have_count(0)

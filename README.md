@@ -32,6 +32,11 @@ An AI agent that takes one command — research, analyze, summarize documents, a
 | Chat UI | Responsive web app (Vercel) + Streamlit (local) |
 | Mobile-friendly | Settings drawer, touch-sized controls, chat-first layout |
 | Model fallback | Switches to `gemini-2.5-flash-lite` on quota errors |
+| Multi-key rotation | `GOOGLE_API_KEYS`, `BREVO_API_KEYS`, `RESEND_API_KEYS` (comma-separated) |
+| Usage storage | SQLite logs prompts/outputs per browser session (hashed IP + user agent) |
+| Chat restore | Previous messages reload from `/api/session/history` (no login) |
+| Privacy | Server default emails are never shown in the UI; users enter their own |
+| Security guardrails | Assistant output redacts API keys and refuses credential dumps |
 | Faster on Vercel | Lighter default model, tighter limits, trimmed search output |
 
 ---
@@ -79,6 +84,7 @@ Copy `.env.example` → `.env` and set:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GOOGLE_API_KEY` | Yes | Gemini API key |
+| `GOOGLE_API_KEYS` | No | Comma-separated keys — rotates on quota errors |
 | `SERPAPI_API_KEY` | Yes | Web search |
 | `EMAIL_PROVIDER` | No | `smtp` (recommended) or `resend` |
 | `SMTP_USER` | SMTP mode | Your Gmail address |
@@ -86,7 +92,8 @@ Copy `.env.example` → `.env` and set:
 | `SMTP_FROM` | No | Display name, e.g. `AI Agent <you@gmail.com>` |
 | `RESEND_API_KEY` | Resend mode | Resend API key |
 | `RESEND_FROM_EMAIL` | Resend mode | Sender address |
-| `RESEND_TO_EMAIL` | Yes | Default recipient(s), comma-separated |
+| `RESEND_TO_EMAIL` | Server | Fallback recipient for env validation only — **not shown in UI** |
+| `STORAGE_PATH` | No | SQLite path (default `data/usage.db`; Vercel uses `/tmp`) |
 | `RESEND_ACCOUNT_EMAIL` | Resend test | Your Resend login email |
 | `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
 | `GEMINI_FALLBACK_MODEL` | No | Default: `gemini-2.5-flash-lite` |

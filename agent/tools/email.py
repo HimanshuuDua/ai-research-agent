@@ -8,7 +8,7 @@ from agent.errors import AgentServiceError, friendly_agent_error
 
 def _resolve_recipients(extra: str = "") -> list[str]:
     session = get_active_recipients()
-    recipients = list(session) if session else list(get_valid_email_recipients())
+    recipients = list(session) if session else []
 
     if extra:
         for email in extra.split(","):

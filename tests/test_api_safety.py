@@ -15,10 +15,29 @@ def client(monkeypatch):
     return TestClient(app)
 
 
-def test_health_includes_config_warnings(client, monkeypatch):
-    monkeypatch.setenv("RESEND_TO_EMAIL", "smtp")
+def test_health_ok_without_public_emails(client):
     response = client.get("/api/health")
-    assert response.status_code == 503
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "email_recipients" not in data
+
+
+def test_session_history_empty(client):
+    response = client.get("/api/session/history")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["messages"] == []
+    assert "session_key" in data
+
+
+def test_chat_requires_email_in_full_mode(client):
+    response = client.post(
+        "/api/chat",
+        json={"prompt": "email me a summary", "mode": "full", "email_recipients": ""},
+    )
+    assert response.status_code == 400
+    assert "email" in response.json()["detail"]["error"].lower()
 
 
 def test_chat_rejects_invalid_mode(client):

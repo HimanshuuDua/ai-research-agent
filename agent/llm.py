@@ -6,11 +6,17 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.config import FALLBACK_MODEL, PRIMARY_MODEL
 
 
-def create_llm(model: str | None = None, *, temperature: float = 0) -> ChatGoogleGenerativeAI:
+def create_llm(
+    model: str | None = None,
+    *,
+    temperature: float = 0,
+    google_api_key: str | None = None,
+) -> ChatGoogleGenerativeAI:
+    api_key = google_api_key or os.environ["GOOGLE_API_KEY"]
     return ChatGoogleGenerativeAI(
         model=model or PRIMARY_MODEL,
         temperature=temperature,
-        google_api_key=os.environ["GOOGLE_API_KEY"],
+        google_api_key=api_key,
     )
 
 

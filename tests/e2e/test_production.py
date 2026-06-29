@@ -49,9 +49,7 @@ def test_production_health(production_url: str):
     assert "email_delivery" in data
     delivery = data["email_delivery"]
     assert delivery["mode"] in {"test", "production", "smtp", "brevo"}
-
-    for email in data.get("email_recipients", []):
-        assert EMAIL_RE.match(email), f"Invalid default recipient on server: {email!r}"
+    assert "email_recipients" not in data
 
     if delivery["mode"] == "smtp":
         assert delivery.get("provider") == "smtp"

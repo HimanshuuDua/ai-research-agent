@@ -11,6 +11,7 @@ import resend
 from resend.exceptions import ResendError
 
 from agent.config import get_email_provider
+from agent.key_pool import get_brevo_api_keys, get_resend_api_keys
 from agent.errors import AgentServiceError, friendly_agent_error
 
 
@@ -91,8 +92,8 @@ def send_via_smtp(to_list: list[str], subject: str, body: str) -> str:
     return ", ".join(to_list)
 
 
-def send_via_brevo(to_list: list[str], subject: str, body: str) -> str:
-    api_key = os.environ["BREVO_API_KEY"]
+def send_via_brevo(to_list: list[str], subject: str, body: str, api_key: str | None = None) -> str:
+    key = api_key or os.environ["BREVO_API_KEY"]
     from_email = os.getenv("BREVO_FROM_EMAIL") or os.getenv("SMTP_USER", "")
     from_name = os.getenv("BREVO_FROM_NAME", "AI Research Agent")
 
@@ -111,7 +112,7 @@ def send_via_brevo(to_list: list[str], subject: str, body: str) -> str:
         data=json.dumps(payload).encode(),
         headers={
             "accept": "application/json",
-            "api-key": api_key,
+            "api-key": key,
             "content-type": "application/json",
         },
         method="POST",
@@ -130,8 +131,8 @@ def send_via_brevo(to_list: list[str], subject: str, body: str) -> str:
     return str(message_id)
 
 
-def send_via_resend(to_list: list[str], subject: str, body: str) -> str:
-    resend.api_key = os.environ["RESEND_API_KEY"]
+def send_via_resend(to_list: list[str], subject: str, body: str, api_key: str | None = None) -> str:
+    resend.api_key = api_key or os.environ["RESEND_API_KEY"]
     payload = {
         "from": os.environ["RESEND_FROM_EMAIL"],
         "to": to_list,
@@ -149,17 +150,31 @@ def send_via_resend(to_list: list[str], subject: str, body: str) -> str:
 def deliver_email(to_list: list[str], subject: str, body: str) -> str:
     provider = get_email_provider()
     joined = ", ".join(to_list)
+    last_error: Exception | None = None
 
     if provider == "smtp":
         send_via_smtp(to_list, subject, body)
         return f"Email sent successfully to {joined} via SMTP."
 
     if provider == "brevo":
-        message_id = send_via_brevo(to_list, subject, body)
-        return f"Email sent successfully to {joined} via Brevo (id: {message_id})."
+        keys = get_brevo_api_keys()
+        for key in keys or [os.environ.get("BREVO_API_KEY", "")]:
+            try:
+                message_id = send_via_brevo(to_list, subject, body, api_key=key)
+                return f"Email sent successfully to {joined} via Brevo (id: {message_id})."
+            except AgentServiceError as exc:
+                last_error = exc
+                continue
+        raise last_error or AgentServiceError("Brevo email delivery failed.")
 
-    try:
-        message_id = send_via_resend(to_list, subject, body)
-        return f"Email sent successfully to {joined} (id: {message_id})."
-    except ResendError as exc:
-        raise friendly_agent_error(exc) from exc
+    keys = get_resend_api_keys()
+    for key in keys or [os.environ.get("RESEND_API_KEY", "")]:
+        try:
+            message_id = send_via_resend(to_list, subject, body, api_key=key)
+            return f"Email sent successfully to {joined} (id: {message_id})."
+        except ResendError as exc:
+            last_error = exc
+            continue
+    raise friendly_agent_error(
+        last_error or AgentServiceError("Email delivery failed after trying all configured keys.")
+    )
