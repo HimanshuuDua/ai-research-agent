@@ -7,7 +7,8 @@ EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 load_dotenv()
 
-PRIMARY_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+_DEFAULT_PRIMARY = "gemini-2.5-flash-lite" if os.getenv("VERCEL") else "gemini-2.5-flash"
+PRIMARY_MODEL = os.getenv("GEMINI_MODEL", _DEFAULT_PRIMARY)
 FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
 
 RESEND_TEST_FROM = "onboarding@resend.dev"
@@ -65,6 +66,17 @@ def get_missing_env_keys() -> list[str]:
         missing.append("RESEND_TO_EMAIL")
 
     return missing
+
+
+def get_agent_max_iterations() -> int:
+    default = "5" if os.getenv("VERCEL") else "7"
+    return int(os.getenv("AGENT_MAX_ITERATIONS", default))
+
+
+def get_agent_max_execution_time() -> int | None:
+    if os.getenv("AGENT_MAX_EXECUTION_TIME"):
+        return int(os.getenv("AGENT_MAX_EXECUTION_TIME"))
+    return 25 if os.getenv("VERCEL") else 90
 
 
 def is_valid_email(address: str) -> bool:

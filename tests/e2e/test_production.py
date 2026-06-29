@@ -1,11 +1,12 @@
-"""Smoke tests against the live Vercel deployment.
+"""Live Playwright tests against the Vercel deployment.
 
-Run: E2E_BASE_URL=https://your-app.vercel.app pytest tests/e2e/test_production.py -q
+Run: E2E_PRODUCTION=1 pytest tests/e2e/test_production.py -v
 """
 
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -28,8 +29,8 @@ def require_production_flag():
         pytest.skip("Set E2E_PRODUCTION=1 to run live deployment tests")
 
 
-def _fetch_json(path: str) -> dict:
-    with urllib.request.urlopen(f"{PRODUCTION_URL}{path}", timeout=20) as response:
+def _fetch_json(path: str, timeout: int = 20) -> dict:
+    with urllib.request.urlopen(f"{PRODUCTION_URL}{path}", timeout=timeout) as response:
         return json.loads(response.read().decode())
 
 
@@ -39,7 +40,11 @@ def production_url() -> str:
 
 
 def test_production_health(production_url: str):
+    started = time.time()
     data = _fetch_json("/api/health")
+    elapsed = time.time() - started
+
+    assert elapsed < 8, f"Health check took {elapsed:.1f}s (expected < 8s)"
     assert data["status"] == "ok"
     assert "email_delivery" in data
     delivery = data["email_delivery"]
@@ -61,25 +66,64 @@ def test_production_health(production_url: str):
 
 
 def test_production_homepage(page: Page, production_url: str):
-    page.goto(production_url)
+    page.goto(production_url, wait_until="domcontentloaded")
     expect(page.locator("h1")).to_have_text("AI Research Agent")
     expect(page.locator("#prompt")).to_be_visible()
     expect(page.locator("#recipient-add")).to_be_visible()
     page.wait_for_function(
         "() => ['API ready', 'Missing env vars'].includes("
-        "document.querySelector('#status .label')?.textContent)"
+        "document.querySelector('#status .label')?.textContent)",
+        timeout=15000,
     )
 
 
-def test_production_recipient_chips(page: Page, production_url: str):
-    page.goto(production_url)
+def test_production_email_hint(page: Page, production_url: str):
+    page.goto(production_url, wait_until="domcontentloaded")
     page.wait_for_function(
-        "() => document.querySelector('#status .label')?.textContent === 'API ready'"
+        "() => document.querySelector('#status .label')?.textContent === 'API ready'",
+        timeout=15000,
+    )
+    hint = page.locator("#email-mode-hint")
+    expect(hint).to_be_visible()
+    text = hint.inner_text().lower()
+    assert "smtp" in text or "brevo" in text or "recipients" in text
+
+
+def test_production_recipient_chips(page: Page, production_url: str):
+    page.goto(production_url, wait_until="domcontentloaded")
+    page.wait_for_function(
+        "() => document.querySelector('#status .label')?.textContent === 'API ready'",
+        timeout=15000,
     )
     page.fill("#recipient-add", "qa-check@example.com")
     page.click("#recipient-add-btn")
     chip = page.locator("#recipient-list .recipient-chip", has_text="qa-check@example.com")
     expect(chip).to_be_visible()
+
+
+def test_production_search_only_chat(page: Page, production_url: str):
+    """Live end-to-end: send a quick search prompt and wait for assistant reply."""
+    page.set_default_timeout(120_000)
+    page.goto(production_url, wait_until="domcontentloaded")
+    page.wait_for_function(
+        "() => document.querySelector('#status .label')?.textContent === 'API ready'",
+        timeout=15000,
+    )
+
+    page.select_option("#mode", "search_only")
+    page.fill(
+        "#prompt",
+        "List 3 AI agent trends in 2025 in 3 short bullet points. One web search only.",
+    )
+    started = time.time()
+    page.click("#send")
+
+    page.wait_for_selector(".message-row.assistant .bubble", timeout=120_000)
+    elapsed = time.time() - started
+
+    assistant_text = page.locator(".message-row.assistant .bubble").last.inner_text()
+    assert len(assistant_text.strip()) > 20, "Assistant reply was empty"
+    assert elapsed < 120, f"Chat took {elapsed:.0f}s (expected < 120s on live site)"
 
 
 def test_production_upload_rejects_empty(production_url: str):

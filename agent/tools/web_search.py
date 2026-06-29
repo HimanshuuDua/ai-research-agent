@@ -6,10 +6,19 @@ from langchain_core.tools import Tool
 from agent.errors import friendly_agent_error
 
 
+MAX_SEARCH_CHARS = 3500
+
+
 def _search(query: str) -> str:
     try:
-        search = SerpAPIWrapper(serpapi_api_key=os.environ["SERPAPI_API_KEY"])
-        return search.run(query)
+        search = SerpAPIWrapper(
+            serpapi_api_key=os.environ["SERPAPI_API_KEY"],
+            params={"num": 5},
+        )
+        result = search.run(query)
+        if len(result) > MAX_SEARCH_CHARS:
+            return result[:MAX_SEARCH_CHARS] + "\n\n[Search results truncated for speed.]"
+        return result
     except Exception as exc:
         raise friendly_agent_error(exc) from exc
 

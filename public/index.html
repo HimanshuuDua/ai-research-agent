@@ -1227,6 +1227,8 @@
     let recipientEmails = [];
     let emailHintDefault = emailModeHint.textContent;
     let recipientToastTimer = null;
+    let workStartedAt = 0;
+    let statusTimer = null;
 
     const SUPPORTED_EXTENSIONS = [
       ".pdf", ".docx", ".txt", ".md", ".markdown",
@@ -1582,6 +1584,24 @@
       statusEl.querySelector(".label").textContent = text;
     }
 
+    function setWorkingStatus(text) {
+      workStartedAt = Date.now();
+      setStatus(text, "working");
+      if (statusTimer) clearInterval(statusTimer);
+      statusTimer = setInterval(() => {
+        const secs = Math.floor((Date.now() - workStartedAt) / 1000);
+        statusEl.querySelector(".label").textContent = `${text} (${secs}s)`;
+      }, 1000);
+    }
+
+    function clearWorkingStatus(text, type = "ok") {
+      if (statusTimer) {
+        clearInterval(statusTimer);
+        statusTimer = null;
+      }
+      setStatus(text, type);
+    }
+
     function updatePipeline() {
       const mode = modeSelect.value;
       const active = mode === "search_only" ? 1 : mode === "search_and_code" ? 2 : 3;
@@ -1738,7 +1758,7 @@
 
       sendBtn.disabled = true;
       sendBtn.classList.add("loading");
-      setStatus("Agent working…", "working");
+      setWorkingStatus("Agent working…");
       showTyping();
 
       try {
@@ -1771,11 +1791,11 @@
           next_steps: data.next_steps,
         });
         renderQuickPrompts();
-        setStatus("Done", "ok");
+        clearWorkingStatus("Done", "ok");
       } catch (err) {
         hideTyping();
         addMessage("system", err.message || "Request failed");
-        setStatus("Error", "error");
+        clearWorkingStatus("Error", "error");
       } finally {
         sendBtn.disabled = false;
         sendBtn.classList.remove("loading");

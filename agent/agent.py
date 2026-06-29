@@ -7,7 +7,13 @@ from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from agent.config import FALLBACK_MODEL, PRIMARY_MODEL, get_email_delivery_info
+from agent.config import (
+    FALLBACK_MODEL,
+    PRIMARY_MODEL,
+    get_agent_max_execution_time,
+    get_agent_max_iterations,
+    get_email_delivery_info,
+)
 from agent.context import set_active_documents, set_active_recipients
 from agent.errors import AgentServiceError, friendly_agent_error
 from agent.llm import create_llm
@@ -36,7 +42,7 @@ When given a task:
    Pass the target address in the recipients argument when the user specifies one.
 
 For document summaries: call read_document first, then write a structured summary with key points.
-Work step by step. Be thorough but concise in your final response and email."""
+Be efficient: prefer 1–2 tool calls when possible. Keep answers and emails concise."""
 
 PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -187,12 +193,12 @@ def _email_context_block(email_recipients: list[str] | None) -> str:
     return " ".join(lines)
 
 
-def _normalize_chat_history(chat_history: list | None) -> list[BaseMessage]:
+def _normalize_chat_history(chat_history: list | None, max_messages: int = 8) -> list[BaseMessage]:
     if not chat_history:
         return []
 
     normalized: list[BaseMessage] = []
-    for message in chat_history:
+    for message in chat_history[-max_messages:]:
         if isinstance(message, (HumanMessage, AIMessage)):
             normalized.append(message)
             continue
@@ -209,14 +215,18 @@ def create_agent(mode: ToolMode = "full", model: str | None = None) -> AgentExec
     llm = create_llm(model)
     tools = _build_tools(mode)
     agent = create_tool_calling_agent(llm, tools, PROMPT)
-    return AgentExecutor(
-        agent=agent,
-        tools=tools,
-        verbose=True,
-        handle_parsing_errors=True,
-        return_intermediate_steps=True,
-        max_iterations=10,
-    )
+    max_time = get_agent_max_execution_time()
+    executor_kwargs = {
+        "agent": agent,
+        "tools": tools,
+        "verbose": True,
+        "handle_parsing_errors": True,
+        "return_intermediate_steps": True,
+        "max_iterations": get_agent_max_iterations(),
+    }
+    if max_time:
+        executor_kwargs["max_execution_time"] = max_time
+    return AgentExecutor(**executor_kwargs)
 
 
 def run_agent(
