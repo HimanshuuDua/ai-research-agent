@@ -54,9 +54,9 @@ def get_email_provider() -> str:
 
 
 def is_valid_google_ai_studio_key(key: str) -> bool:
-    """Google AI Studio keys start with AIza — not OAuth tokens (AQ...)."""
+    """Accept both legacy AI Studio keys (AIza...) and new auth keys (AQ....)."""
     key = key.strip()
-    return key.startswith("AIza") and len(key) >= 20
+    return (key.startswith("AIza") or key.startswith("AQ.")) and len(key) >= 20
 
 
 def get_google_key_warnings() -> list[dict[str, str]]:
@@ -70,8 +70,8 @@ def get_google_key_warnings() -> list[dict[str, str]]:
         {
             "code": "invalid_google_api_key_format",
             "message": (
-                "GOOGLE_API_KEY must be a Google AI Studio API key (starts with AIza). "
-                "OAuth or AQ-style tokens are not supported. "
+                "GOOGLE_API_KEY must be a Google AI Studio API key (starts with AIza or AQ.). "
+                "Check for stray characters or labels appended to the key. "
                 "Create keys at https://aistudio.google.com/apikey"
             ),
         }

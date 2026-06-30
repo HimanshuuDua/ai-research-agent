@@ -41,8 +41,8 @@ def friendly_agent_error(exc: Exception) -> AgentServiceError:
         return AgentServiceError(
             "Invalid Google API credentials.",
             hint=(
-                "Use a Google AI Studio API key (starts with AIza), not an OAuth token (AQ...). "
-                "Create one at https://aistudio.google.com/apikey and update GOOGLE_API_KEY on Vercel."
+                "Check GOOGLE_API_KEY for stray characters or labels (e.g. a trailing -1). "
+                "Create a fresh key at https://aistudio.google.com/apikey and update it on Vercel."
             ),
         )
 
