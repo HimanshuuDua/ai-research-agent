@@ -161,6 +161,7 @@ def health():
         )
     from agent.email_delivery import get_email_pool_size
     from agent.key_pool import get_google_api_keys
+    from agent.storage import supabase_ping, use_supabase
 
     gemini_keys = get_google_api_keys()
     email_pool = get_email_pool_size()
@@ -173,6 +174,8 @@ def health():
         "gemini_rotation_ready": len(gemini_keys) > 1,
         "email_account_count": email_pool,
         "email_rotation_ready": email_pool > 1,
+        "storage_backend": "supabase" if use_supabase() else "sqlite",
+        "supabase": supabase_ping(),
     }
 
 
