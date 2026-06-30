@@ -124,27 +124,34 @@ def get_email_config_warnings() -> list[dict[str, str]]:
         )
 
     if provider == "smtp":
-        if not os.getenv("SMTP_USER"):
-            warnings.append(
-                {
-                    "code": "smtp_missing_user",
-                    "message": "EMAIL_PROVIDER is smtp but SMTP_USER is not set.",
-                }
-            )
-        elif not is_valid_email(os.getenv("SMTP_USER", "")):
-            warnings.append(
-                {
-                    "code": "smtp_invalid_user",
-                    "message": "SMTP_USER must be a valid Gmail address.",
-                }
-            )
-        if not os.getenv("SMTP_PASSWORD"):
-            warnings.append(
-                {
-                    "code": "smtp_missing_password",
-                    "message": "EMAIL_PROVIDER is smtp but SMTP_PASSWORD is not set.",
-                }
-            )
+        accounts = get_smtp_accounts()
+        if not accounts:
+            if not os.getenv("SMTP_USER"):
+                warnings.append(
+                    {
+                        "code": "smtp_missing_user",
+                        "message": "EMAIL_PROVIDER is smtp but SMTP_USER is not set.",
+                    }
+                )
+            if not os.getenv("SMTP_PASSWORD"):
+                warnings.append(
+                    {
+                        "code": "smtp_missing_password",
+                        "message": "EMAIL_PROVIDER is smtp but SMTP_PASSWORD is not set.",
+                    }
+                )
+        else:
+            invalid_users = [account["user"] for account in accounts if not is_valid_email(account["user"])]
+            if invalid_users:
+                warnings.append(
+                    {
+                        "code": "smtp_invalid_user",
+                        "message": (
+                            f"Invalid SMTP_USER address(es): {', '.join(invalid_users)}. "
+                            "Use Gmail addresses like you@gmail.com."
+                        ),
+                    }
+                )
     elif provider == "resend" and is_resend_test_mode():
         allowed = get_resend_account_email()
         if allowed and not is_valid_email(allowed):

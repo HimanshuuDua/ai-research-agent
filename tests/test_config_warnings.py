@@ -23,3 +23,12 @@ def test_smtp_missing_password_warning(monkeypatch):
     monkeypatch.setenv("RESEND_TO_EMAIL", "you@gmail.com")
     warnings = get_email_config_warnings()
     assert any(w["code"] == "smtp_missing_password" for w in warnings)
+
+
+def test_smtp_comma_users_no_false_invalid_warning(monkeypatch):
+    monkeypatch.setenv("EMAIL_PROVIDER", "smtp")
+    monkeypatch.setenv("SMTP_USER", "a@gmail.com,b@gmail.com")
+    monkeypatch.setenv("SMTP_PASSWORD", "pass-one,pass-two")
+    monkeypatch.setenv("RESEND_TO_EMAIL", "a@gmail.com")
+    warnings = get_email_config_warnings()
+    assert not any(w["code"] == "smtp_invalid_user" for w in warnings)
