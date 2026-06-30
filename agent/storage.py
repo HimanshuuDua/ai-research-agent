@@ -21,6 +21,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MAX_HISTORY_MESSAGES = 80
 
+SB_SESSIONS = "sessions"
+SB_MESSAGES = "messages"
+SB_USAGE = "usage_logs"
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -82,7 +86,7 @@ def _sb_touch_session(session_key: str, ip_hash: str) -> None:
     now = _now_iso()
     _sb_request(
         "POST",
-        "sessions",
+        SB_SESSIONS,
         body={
             "session_key": session_key,
             "ip_hash": ip_hash,
@@ -98,7 +102,7 @@ def _sb_append_message(session_key, ip_hash, role, content, mode, model_used) ->
     _sb_touch_session(session_key, ip_hash)
     _sb_request(
         "POST",
-        "messages",
+        SB_MESSAGES,
         body={
             "session_key": session_key,
             "role": role,
@@ -115,7 +119,7 @@ def _sb_log_usage(session_key, ip_hash, prompt, output, mode, model_used, email_
     _sb_touch_session(session_key, ip_hash)
     _sb_request(
         "POST",
-        "usage_logs",
+        SB_USAGE,
         body={
             "session_key": session_key,
             "ip_hash": ip_hash,
