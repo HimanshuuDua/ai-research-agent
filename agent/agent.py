@@ -244,6 +244,22 @@ def create_agent(
     return AgentExecutor(**executor_kwargs)
 
 
+def _is_retryable_gemini_error(exc: Exception) -> bool:
+    if isinstance(exc, ResourceExhausted):
+        return True
+    text = str(exc).lower()
+    return any(
+        phrase in text
+        for phrase in (
+            "401",
+            "access_token_type_unsupported",
+            "invalid authentication",
+            "api key not valid",
+            "api_key_invalid",
+        )
+    )
+
+
 def run_agent(
     user_input: str,
     mode: ToolMode = "full",
@@ -294,6 +310,9 @@ def run_agent(
                 last_error = exc
                 continue
             except Exception as exc:
+                if _is_retryable_gemini_error(exc):
+                    last_error = exc
+                    continue
                 raise friendly_agent_error(exc) from exc
             finally:
                 set_active_recipients(None)

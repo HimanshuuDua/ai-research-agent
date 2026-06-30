@@ -53,6 +53,31 @@ def get_email_provider() -> str:
     return "resend"
 
 
+def is_valid_google_ai_studio_key(key: str) -> bool:
+    """Google AI Studio keys start with AIza — not OAuth tokens (AQ...)."""
+    key = key.strip()
+    return key.startswith("AIza") and len(key) >= 20
+
+
+def get_google_key_warnings() -> list[dict[str, str]]:
+    keys = get_google_api_keys()
+    if not keys:
+        return []
+    bad = [key for key in keys if not is_valid_google_ai_studio_key(key)]
+    if not bad:
+        return []
+    return [
+        {
+            "code": "invalid_google_api_key_format",
+            "message": (
+                "GOOGLE_API_KEY must be a Google AI Studio API key (starts with AIza). "
+                "OAuth or AQ-style tokens are not supported. "
+                "Create keys at https://aistudio.google.com/apikey"
+            ),
+        }
+    ]
+
+
 def get_missing_env_keys() -> list[str]:
     missing: list[str] = []
     if not get_google_api_keys():
@@ -108,6 +133,7 @@ def get_valid_email_recipients() -> list[str]:
 def get_email_config_warnings() -> list[dict[str, str]]:
     """Surface misconfiguration (e.g. RESEND_TO_EMAIL=smtp on Vercel)."""
     warnings: list[dict[str, str]] = []
+    warnings.extend(get_google_key_warnings())
     provider = get_email_provider()
     recipients = get_email_recipients()
 

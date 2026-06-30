@@ -33,6 +33,19 @@ def friendly_agent_error(exc: Exception) -> AgentServiceError:
             ),
         )
 
+    if (
+        "401" in message
+        or "ACCESS_TOKEN_TYPE_UNSUPPORTED" in message
+        or "invalid authentication credentials" in message.lower()
+    ):
+        return AgentServiceError(
+            "Invalid Google API credentials.",
+            hint=(
+                "Use a Google AI Studio API key (starts with AIza), not an OAuth token (AQ...). "
+                "Create one at https://aistudio.google.com/apikey and update GOOGLE_API_KEY on Vercel."
+            ),
+        )
+
     if "SerpAPI" in message or "serpapi" in message.lower():
         return AgentServiceError(
             "Web search failed. Check your SerpAPI key or monthly search limit.",
