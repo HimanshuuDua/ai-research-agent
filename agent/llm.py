@@ -6,6 +6,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.config import FALLBACK_MODEL, PRIMARY_MODEL
 
 
+def _llm_timeout() -> int:
+    return int(os.getenv("LLM_TIMEOUT", "22"))
+
+
 def create_llm(
     model: str | None = None,
     *,
@@ -13,10 +17,14 @@ def create_llm(
     google_api_key: str | None = None,
 ) -> ChatGoogleGenerativeAI:
     api_key = google_api_key or os.environ["GOOGLE_API_KEY"]
+    # max_retries=0: don't let LangChain do its slow exponential backoff (2s,4s,8s...).
+    # Our own key + model rotation in run_agent handles failures immediately instead.
     return ChatGoogleGenerativeAI(
         model=model or PRIMARY_MODEL,
         temperature=temperature,
         google_api_key=api_key,
+        max_retries=0,
+        timeout=_llm_timeout(),
     )
 
 

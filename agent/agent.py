@@ -252,10 +252,21 @@ def _is_retryable_gemini_error(exc: Exception) -> bool:
         phrase in text
         for phrase in (
             "401",
+            "403",
+            "429",
+            "500",
+            "503",
             "access_token_type_unsupported",
             "invalid authentication",
             "api key not valid",
             "api_key_invalid",
+            "quota",
+            "overloaded",
+            "high demand",
+            "unavailable",
+            "deadline",
+            "timeout",
+            "timed out",
         )
     )
 
@@ -267,7 +278,7 @@ def run_agent(
     email_recipients: list[str] | None = None,
     documents: list[dict] | None = None,
 ) -> AgentResult:
-    models_to_try = [PRIMARY_MODEL, FALLBACK_MODEL]
+    models_to_try = list(dict.fromkeys([PRIMARY_MODEL, FALLBACK_MODEL]))
     api_keys = get_google_api_keys()
     if not api_keys:
         raise AgentServiceError("Missing GOOGLE_API_KEY.")
