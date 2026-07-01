@@ -25,6 +25,7 @@ def create_llm(
         google_api_key=api_key,
         max_retries=0,
         timeout=_llm_timeout(),
+        max_output_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "1536")),
     )
 
 
