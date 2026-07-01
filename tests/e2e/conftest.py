@@ -28,6 +28,9 @@ def live_server():
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT)
     env["STORAGE_PATH"] = str(ROOT / "data" / "e2e-test.db")
+    # Force local SQLite so UI tests never hit the network Supabase backend.
+    env["SUPABASE_URL"] = ""
+    env["SUPABASE_SERVICE_KEY"] = ""
     (ROOT / "data" / "e2e-test.db").unlink(missing_ok=True)
 
     proc = subprocess.Popen(

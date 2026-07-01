@@ -3,7 +3,7 @@ import re
 import sys
 import traceback
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,10 +42,9 @@ from agent.email_delivery import deliver_email, verify_smtp_login  # noqa: E402
 from agent.errors import AgentServiceError, friendly_agent_error  # noqa: E402
 from agent.security import redact_env_values, sanitize_assistant_output  # noqa: E402
 from agent.storage import (  # noqa: E402
-    append_message,
     get_session_messages,
     init_db,
-    log_usage,
+    log_interaction,
     session_key_from_request,
 )
 
@@ -257,7 +256,7 @@ async def upload_document(file: UploadFile = File(...)):
 
 
 @app.post("/api/chat")
-def chat(body: ChatRequest, request: Request):
+def chat(body: ChatRequest, request: Request, background_tasks: BackgroundTasks):
     missing = get_missing_env_keys()
     if missing:
         raise HTTPException(
@@ -291,13 +290,6 @@ def chat(body: ChatRequest, request: Request):
             )
         documents = [doc.model_dump() for doc in body.documents] or None
         session_key, ip_hash = _session_context(request)
-        append_message(
-            session_key,
-            ip_hash,
-            "user",
-            redact_env_values(body.prompt.strip()),
-            mode=body.mode,
-        )
         result = run_agent(
             body.prompt.strip(),
             mode=body.mode,
@@ -309,15 +301,10 @@ def chat(body: ChatRequest, request: Request):
             result = _ensure_email_delivered(result, recipients, body.prompt.strip())
         email_status = email_status_from_steps(result.steps)
         safe_output = sanitize_assistant_output(result.output)
-        append_message(
-            session_key,
-            ip_hash,
-            "assistant",
-            redact_env_values(safe_output),
-            mode=body.mode,
-            model_used=result.model_used,
-        )
-        log_usage(
+        # Persist the full turn after the response is sent so storage latency
+        # (cross-region DB writes) never blocks the user-facing reply.
+        background_tasks.add_task(
+            log_interaction,
             session_key,
             ip_hash,
             redact_env_values(body.prompt.strip()),

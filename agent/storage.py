@@ -149,6 +149,49 @@ def _sb_get_session_messages(session_key: str, limit: int) -> list[dict]:
     return list(reversed(rows))
 
 
+def _sb_log_interaction(session_key, ip_hash, prompt, output, mode, model_used, email_status) -> None:
+    now = _now_iso()
+    _sb_touch_session(session_key, ip_hash)
+    _sb_request(
+        "POST",
+        SB_MESSAGES,
+        body=[
+            {
+                "session_key": session_key,
+                "role": "user",
+                "content": prompt,
+                "mode": mode,
+                "model_used": None,
+                "created_at": now,
+            },
+            {
+                "session_key": session_key,
+                "role": "assistant",
+                "content": output,
+                "mode": mode,
+                "model_used": model_used,
+                "created_at": now,
+            },
+        ],
+        headers={"Prefer": "return=minimal"},
+    )
+    _sb_request(
+        "POST",
+        SB_USAGE,
+        body={
+            "session_key": session_key,
+            "ip_hash": ip_hash,
+            "prompt": prompt,
+            "output": output,
+            "mode": mode,
+            "model_used": model_used,
+            "email_status": json.dumps(email_status) if email_status else None,
+            "created_at": now,
+        },
+        headers={"Prefer": "return=minimal"},
+    )
+
+
 def supabase_ping() -> dict:
     """Lightweight connectivity check for /api/health."""
     if not use_supabase():
@@ -355,3 +398,37 @@ def get_session_messages(session_key: str, limit: int = MAX_HISTORY_MESSAGES) ->
     except Exception as exc:  # noqa: BLE001
         print(f"[storage] get_session_messages failed: {exc}")
         return []
+
+
+def log_interaction(
+    session_key: str,
+    ip_hash: str,
+    prompt: str,
+    output: str,
+    *,
+    mode: str,
+    model_used: str | None = None,
+    email_status: dict | None = None,
+) -> None:
+    """Persist a full turn (user + assistant + usage) in one shot.
+
+    Intended to run in a background task so storage latency never blocks the
+    chat response. Session is touched once instead of three times.
+    """
+    try:
+        if use_supabase():
+            _sb_log_interaction(session_key, ip_hash, prompt, output, mode, model_used, email_status)
+        else:
+            append_message(session_key, ip_hash, "user", prompt, mode=mode)
+            append_message(session_key, ip_hash, "assistant", output, mode=mode, model_used=model_used)
+            log_usage(
+                session_key,
+                ip_hash,
+                prompt,
+                output,
+                mode=mode,
+                model_used=model_used,
+                email_status=email_status,
+            )
+    except Exception as exc:  # noqa: BLE001
+        print(f"[storage] log_interaction failed: {exc}")
