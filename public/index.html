@@ -1273,20 +1273,29 @@
       }
 
       header {
-        flex-direction: row;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: auto auto;
         align-items: center;
-        flex-wrap: wrap;
+        column-gap: 0.5rem;
+        row-gap: 0.45rem;
         padding: 0.7rem 0.85rem;
-        gap: 0.55rem;
+        position: relative;
+        z-index: 90;
       }
 
       header .brand {
-        flex: 1;
+        grid-column: 1;
+        grid-row: 1;
+        flex: unset;
         min-width: 0;
       }
 
       header h1 {
         font-size: 1rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       header p {
@@ -1298,14 +1307,46 @@
         height: 36px;
       }
 
+      .settings-toggle {
+        display: inline-flex;
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        width: 40px;
+        height: 40px;
+        min-height: 40px;
+        padding: 0;
+        border-radius: 10px;
+      }
+
+      .settings-toggle .settings-label {
+        display: none;
+      }
+
+      #status.status-pill {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-self: start;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #status.status-pill .label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      body.settings-open .settings-toggle {
+        visibility: hidden;
+        pointer-events: none;
+      }
+
       .status-pill {
         font-size: 0.72rem;
         padding: 0.4rem 0.7rem;
         max-width: 100%;
-      }
-
-      .settings-toggle {
-        display: inline-flex;
       }
 
       .layout {
@@ -1361,7 +1402,7 @@
         transform: translateX(105%);
         transition: transform 0.32s var(--ease);
         box-shadow: -16px 0 48px rgba(0, 0, 0, 0.55);
-        padding-top: max(0.85rem, env(safe-area-inset-top));
+        padding-top: calc(4.85rem + env(safe-area-inset-top));
         padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
         isolation: isolate;
       }
@@ -1512,9 +1553,9 @@
           <p>Research → analyze → email — one command</p>
         </div>
       </div>
-      <button type="button" class="settings-toggle" id="settings-toggle" aria-expanded="false" aria-controls="sidebar">
+      <button type="button" class="settings-toggle" id="settings-toggle" aria-expanded="false" aria-controls="sidebar" aria-label="Open settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        Settings
+        <span class="settings-label">Settings</span>
       </button>
       <div id="status" class="status-pill">
         <span class="dot"></span>

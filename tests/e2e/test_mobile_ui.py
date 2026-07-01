@@ -44,9 +44,31 @@ def test_mobile_settings_drawer(mobile_page: Page):
     expect(sidebar).to_have_class(re.compile(r"mobile-open"))
     expect(backdrop).to_have_class(re.compile(r"visible"))
     expect(mobile_page.locator("#mode")).to_be_visible()
+    expect(toggle).to_be_hidden()
 
     mobile_page.locator("#settings-close").click()
     expect(sidebar).not_to_have_class(re.compile(r"mobile-open"))
+
+
+def test_mobile_header_controls_do_not_overlap(mobile_page: Page):
+    overlap = mobile_page.evaluate(
+        """() => {
+          const rect = (el) => el?.getBoundingClientRect();
+          const overlaps = (a, b) => {
+            if (!a || !b) return false;
+            return !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+          };
+          const settings = rect(document.getElementById('settings-toggle'));
+          const status = rect(document.getElementById('status'));
+          const brand = rect(document.querySelector('.brand'));
+          return {
+            overlapStatus: overlaps(settings, status),
+            overlapBrand: overlaps(settings, brand),
+          };
+        }"""
+    )
+    assert not overlap["overlapStatus"]
+    assert not overlap["overlapBrand"]
 
 
 def test_mobile_composer_has_attach_and_email(mobile_page: Page):
