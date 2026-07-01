@@ -75,6 +75,20 @@ def test_merge_recipients_from_prompt():
     assert "himanshuudua@gmail.com" in merged
 
 
+def test_chat_stream_rejects_invalid_mode(client):
+    response = client.post("/api/chat/stream", json={"prompt": "hello", "mode": "invalid"})
+    assert response.status_code == 400
+
+
+def test_chat_stream_requires_email_in_full_mode(client):
+    response = client.post(
+        "/api/chat/stream",
+        json={"prompt": "email me a summary", "mode": "full", "email_recipients": ""},
+    )
+    assert response.status_code == 400
+    assert "email" in response.json()["detail"]["error"].lower()
+
+
 def test_upload_rejects_missing_filename(client):
     response = client.post(
         "/api/upload",

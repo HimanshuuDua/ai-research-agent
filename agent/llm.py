@@ -15,6 +15,7 @@ def create_llm(
     *,
     temperature: float = 0,
     google_api_key: str | None = None,
+    streaming: bool = False,
 ) -> ChatGoogleGenerativeAI:
     api_key = google_api_key or os.environ["GOOGLE_API_KEY"]
     # max_retries=0: don't let LangChain do its slow exponential backoff (2s,4s,8s...).
@@ -23,6 +24,7 @@ def create_llm(
         model=model or PRIMARY_MODEL,
         temperature=temperature,
         google_api_key=api_key,
+        streaming=streaming,
         max_retries=0,
         timeout=_llm_timeout(),
         max_output_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "1536")),

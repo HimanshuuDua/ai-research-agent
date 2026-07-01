@@ -231,8 +231,10 @@ def create_agent(
     mode: ToolMode = "full",
     model: str | None = None,
     google_api_key: str | None = None,
+    *,
+    streaming: bool = False,
 ) -> AgentExecutor:
-    llm = create_llm(model, google_api_key=google_api_key)
+    llm = create_llm(model, google_api_key=google_api_key, streaming=streaming)
     tools = _build_tools(mode)
     agent = create_tool_calling_agent(llm, tools, PROMPT)
     max_time = get_agent_max_execution_time()
@@ -324,6 +326,18 @@ def _chunk_text(chunk) -> str:
     return content
 
 
+def _answer_token(chunk) -> str | None:
+    """Return user-visible answer text from a stream chunk, or None for tool-call tokens."""
+    if chunk is None:
+        return None
+    if getattr(chunk, "tool_call_chunks", None):
+        return None
+    if getattr(chunk, "tool_calls", None):
+        return None
+    text = _chunk_text(chunk)
+    return text if text else None
+
+
 async def stream_agent(
     user_input: str,
     mode: ToolMode = "full",
@@ -353,7 +367,9 @@ async def stream_agent(
             try:
                 set_active_recipients(email_recipients)
                 set_active_documents(documents)
-                executor = create_agent(mode, model=model_name, google_api_key=api_key)
+                executor = create_agent(
+                    mode, model=model_name, google_api_key=api_key, streaming=True
+                )
                 async for event in executor.astream_events(
                     {"input": agent_input, "chat_history": history},
                     version="v2",
@@ -374,7 +390,7 @@ async def stream_agent(
                         out_text = out_text if isinstance(out_text, str) else str(out)
                         steps.append(AgentStep(tool=name, input=inp, output=out_text))
                     elif kind == "on_chat_model_stream":
-                        text = _chunk_text(event.get("data", {}).get("chunk"))
+                        text = _answer_token(event.get("data", {}).get("chunk"))
                         if text:
                             produced = True
                             yield {"type": "token", "text": text}

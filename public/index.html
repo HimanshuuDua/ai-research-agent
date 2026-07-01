@@ -2343,6 +2343,7 @@
         let handle = null;
         let doneData = null;
         let streamed = "";
+        let streamPhase = "typing";
 
         while (true) {
           const { value, done } = await reader.read();
@@ -2360,10 +2361,23 @@
 
             if (ev.type === "status") {
               setWorkingStatus(ev.message);
+              if (!handle) {
+                hideTyping();
+                handle = beginAssistantStream();
+                streamPhase = "status";
+              }
+              if (streamPhase === "status") {
+                handle.textEl.textContent = ev.message;
+                scrollChatToBottom();
+              }
             } else if (ev.type === "token") {
               if (!handle) {
                 hideTyping();
                 handle = beginAssistantStream();
+              }
+              if (streamPhase !== "streaming") {
+                streamed = "";
+                streamPhase = "streaming";
               }
               streamed += ev.text;
               handle.textEl.textContent = streamed;

@@ -415,7 +415,9 @@ async def chat_stream(body: ChatRequest, request: Request):
             output = "".join(accumulated) or "Task completed."
             result = AgentResult(output=output, steps=steps, model_used=model_used or "")
             if body.mode == "full":
-                result = _ensure_email_delivered(result, recipients, prompt)
+                result = await asyncio.to_thread(
+                    _ensure_email_delivered, result, recipients, prompt
+                )
 
             email_status = email_status_from_steps(result.steps)
             safe_output = sanitize_assistant_output(result.output)
