@@ -913,6 +913,21 @@
       animation: msgIn 0.35s var(--ease) both;
     }
 
+    .stream-text::after {
+      content: "▋";
+      display: inline-block;
+      margin-left: 1px;
+      color: var(--accent);
+      animation: caretBlink 1s steps(2, start) infinite;
+    }
+
+    .stream-text.done::after { content: ""; }
+
+    @keyframes caretBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
     .typing-dots {
       display: flex;
       gap: 5px;
@@ -2110,24 +2125,7 @@
         .replace(/>/g, "&gt;");
     }
 
-    function addMessage(role, content, extra = {}) {
-      hideEmpty();
-
-      const row = document.createElement("div");
-      row.className = `message-row ${role}`;
-
-      if (role !== "system") {
-        const avatar = document.createElement("div");
-        avatar.className = "avatar";
-        avatar.innerHTML = role === "user" ? ICONS.user : ICONS.assistant;
-        avatar.setAttribute("aria-hidden", "true");
-        row.appendChild(avatar);
-      }
-
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = content;
-
+    function decorateBubble(bubble, extra = {}) {
       if (extra.steps && extra.steps.length) {
         const stepsWrap = document.createElement("div");
         stepsWrap.className = "steps";
@@ -2139,7 +2137,7 @@
           const toolLabel = TOOL_LABELS[step.tool] || step.tool;
           details.innerHTML = `
             <summary><span class="tool-icon">${icon}</span> ${escapeHtml(toolLabel)} <span class="chevron">›</span></summary>
-            <pre>${escapeHtml(step.input)}\n\n→ ${escapeHtml(step.output.slice(0, 800))}</pre>
+            <pre>${escapeHtml(step.input)}\n\n→ ${escapeHtml((step.output || "").slice(0, 800))}</pre>
           `;
           stepsWrap.appendChild(details);
         });
@@ -2158,9 +2156,56 @@
       }
 
       appendEmailSuccess(bubble, extra.email_status);
+    }
+
+    function addMessage(role, content, extra = {}) {
+      hideEmpty();
+
+      const row = document.createElement("div");
+      row.className = `message-row ${role}`;
+
+      if (role !== "system") {
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.innerHTML = role === "user" ? ICONS.user : ICONS.assistant;
+        avatar.setAttribute("aria-hidden", "true");
+        row.appendChild(avatar);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = content;
+      decorateBubble(bubble, extra);
 
       row.appendChild(bubble);
       chat.appendChild(row);
+      scrollChatToBottom();
+    }
+
+    function beginAssistantStream() {
+      hideEmpty();
+      const row = document.createElement("div");
+      row.className = "message-row assistant";
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.innerHTML = ICONS.assistant;
+      avatar.setAttribute("aria-hidden", "true");
+      row.appendChild(avatar);
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      const textEl = document.createElement("span");
+      textEl.className = "stream-text";
+      bubble.appendChild(textEl);
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      scrollChatToBottom();
+      return { row, bubble, textEl };
+    }
+
+    function finalizeAssistantStream(handle, data = {}) {
+      if (data.output) handle.textEl.textContent = data.output;
+      handle.textEl.classList.add("done");
+      decorateBubble(handle.bubble, data);
       scrollChatToBottom();
     }
 
@@ -2274,7 +2319,7 @@
       showTyping();
 
       try {
-        const res = await fetch("/api/chat", {
+        const res = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -2285,24 +2330,65 @@
             documents: docsForRequest,
           }),
         });
-        const data = await res.json();
-        hideTyping();
-        if (!res.ok) throw new Error(parseError(data));
 
-        const output = data.output || "Task completed.";
-        addMessage("assistant", output, {
-          steps: data.steps,
-          model_used: data.model_used,
-          next_steps: data.next_steps,
-          email_status: data.email_status,
-        });
+        if (!res.ok) {
+          let data = {};
+          try { data = await res.json(); } catch (_) {}
+          throw new Error(parseError(data));
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let handle = null;
+        let doneData = null;
+        let streamed = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop();
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+            let ev;
+            try { ev = JSON.parse(payload); } catch (_) { continue; }
+
+            if (ev.type === "status") {
+              setWorkingStatus(ev.message);
+            } else if (ev.type === "token") {
+              if (!handle) {
+                hideTyping();
+                handle = beginAssistantStream();
+              }
+              streamed += ev.text;
+              handle.textEl.textContent = streamed;
+              scrollChatToBottom();
+            } else if (ev.type === "done") {
+              doneData = ev;
+            } else if (ev.type === "error") {
+              throw new Error(ev.message || "Request failed");
+            }
+          }
+        }
+
+        hideTyping();
+        if (!handle) handle = beginAssistantStream();
+        const finalData = doneData || {};
+        const output = finalData.output || streamed || "Task completed.";
+        finalizeAssistantStream(handle, { ...finalData, output });
+
         history.push({
           role: "assistant",
           content: output,
-          steps: data.steps,
-          model_used: data.model_used,
-          next_steps: data.next_steps,
-          email_status: data.email_status,
+          steps: finalData.steps,
+          model_used: finalData.model_used,
+          next_steps: finalData.next_steps,
+          email_status: finalData.email_status,
         });
         persistChatHistory();
         renderQuickPrompts();

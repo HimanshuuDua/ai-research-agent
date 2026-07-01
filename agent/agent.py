@@ -276,6 +276,123 @@ def _is_retryable_gemini_error(exc: Exception) -> bool:
     )
 
 
+def _build_agent_input(
+    user_input: str,
+    email_recipients: list[str] | None,
+    documents: list[dict] | None,
+) -> str:
+    agent_input = user_input
+    if email_recipients or get_email_delivery_info().get("mode") in {"smtp", "brevo"}:
+        agent_input = f"{user_input}\n\n[Email delivery: {_email_context_block(email_recipients)}]"
+    if documents:
+        names = ", ".join(doc["filename"] for doc in documents)
+        agent_input = (
+            f"{agent_input}\n\n[Uploaded documents available: {names}. "
+            "Use read_document to access their content when relevant.]"
+        )
+    return agent_input
+
+
+def _tool_status(tool: str) -> str:
+    return {
+        "web_search": "Searching the web…",
+        "read_document": "Reading your document…",
+        "python_repl": "Analyzing the data…",
+        "send_email": "Sending the email…",
+    }.get(tool, f"Using {tool}…")
+
+
+def _fmt_tool_input(raw) -> str:
+    if isinstance(raw, dict):
+        inner = raw.get("input", raw)
+        if isinstance(inner, dict):
+            return ", ".join(f"{k}={v!r}" for k, v in inner.items())
+        return str(inner)
+    return str(raw)
+
+
+def _chunk_text(chunk) -> str:
+    content = getattr(chunk, "content", "") or ""
+    if isinstance(content, list):
+        parts = []
+        for piece in content:
+            if isinstance(piece, dict):
+                parts.append(piece.get("text", ""))
+            else:
+                parts.append(str(piece))
+        return "".join(parts)
+    return content
+
+
+async def stream_agent(
+    user_input: str,
+    mode: ToolMode = "full",
+    chat_history: list | None = None,
+    email_recipients: list[str] | None = None,
+    documents: list[dict] | None = None,
+):
+    """Async generator yielding streaming events for the chat UI.
+
+    Event dicts: {"type": "status"|"token"|"complete"|"error", ...}
+    """
+    models_to_try = list(dict.fromkeys([PRIMARY_MODEL, FALLBACK_MODEL]))
+    api_keys = get_google_api_keys()
+    if not api_keys:
+        yield {"type": "error", "message": "Missing GOOGLE_API_KEY."}
+        return
+
+    agent_input = _build_agent_input(user_input, email_recipients, documents)
+    history = _normalize_chat_history(chat_history)
+    last_error: Exception | None = None
+
+    for api_key in api_keys:
+        for model_name in models_to_try:
+            steps_pending: dict = {}
+            steps: list[AgentStep] = []
+            produced = False
+            try:
+                set_active_recipients(email_recipients)
+                set_active_documents(documents)
+                executor = create_agent(mode, model=model_name, google_api_key=api_key)
+                async for event in executor.astream_events(
+                    {"input": agent_input, "chat_history": history},
+                    version="v2",
+                ):
+                    kind = event.get("event")
+                    if kind == "on_tool_start":
+                        name = event.get("name", "tool")
+                        steps_pending[event.get("run_id")] = [
+                            name,
+                            _fmt_tool_input(event.get("data", {}).get("input")),
+                        ]
+                        yield {"type": "status", "message": _tool_status(name)}
+                    elif kind == "on_tool_end":
+                        rid = event.get("run_id")
+                        name, inp = steps_pending.get(rid, [event.get("name", "tool"), ""])
+                        out = event.get("data", {}).get("output")
+                        out_text = getattr(out, "content", None)
+                        out_text = out_text if isinstance(out_text, str) else str(out)
+                        steps.append(AgentStep(tool=name, input=inp, output=out_text))
+                    elif kind == "on_chat_model_stream":
+                        text = _chunk_text(event.get("data", {}).get("chunk"))
+                        if text:
+                            produced = True
+                            yield {"type": "token", "text": text}
+                yield {"type": "complete", "steps": steps, "model_used": model_name}
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                if not produced and _is_retryable_gemini_error(exc):
+                    continue
+                yield {"type": "error", "message": str(friendly_agent_error(exc))}
+                return
+            finally:
+                set_active_recipients(None)
+                set_active_documents(None)
+
+    yield {"type": "error", "message": str(friendly_agent_error(last_error or AgentServiceError("Gemini unavailable.")))}
+
+
 def run_agent(
     user_input: str,
     mode: ToolMode = "full",
@@ -289,15 +406,7 @@ def run_agent(
         raise AgentServiceError("Missing GOOGLE_API_KEY.")
     last_error: Exception | None = None
 
-    agent_input = user_input
-    if email_recipients or get_email_delivery_info().get("mode") in {"smtp", "brevo"}:
-        agent_input = f"{user_input}\n\n[Email delivery: {_email_context_block(email_recipients)}]"
-    if documents:
-        names = ", ".join(doc["filename"] for doc in documents)
-        agent_input = (
-            f"{agent_input}\n\n[Uploaded documents available: {names}. "
-            "Use read_document to access their content when relevant.]"
-        )
+    agent_input = _build_agent_input(user_input, email_recipients, documents)
 
     for api_key in api_keys:
         for model_name in models_to_try:

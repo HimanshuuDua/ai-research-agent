@@ -1,10 +1,12 @@
+import asyncio
+import json
 import os
 import re
 import sys
 import traceback
 
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,7 +29,14 @@ def merge_recipients_from_prompt(prompt: str, ui_recipients: list[str]) -> list[
             known.add(email)
     return merged
 
-from agent.agent import AgentStep, email_status_from_steps, run_agent  # noqa: E402
+from agent.agent import (  # noqa: E402
+    AgentResult,
+    AgentStep,
+    email_status_from_steps,
+    run_agent,
+    stream_agent,
+    suggest_next_steps,
+)
 from agent.config import (  # noqa: E402
     get_email_config_warnings,
     get_email_delivery_info,
@@ -338,3 +347,115 @@ def chat(body: ChatRequest, request: Request, background_tasks: BackgroundTasks)
             status_code=500,
             detail={"error": str(err), "hint": err.hint},
         ) from exc
+
+
+def _sse(obj: dict) -> str:
+    return f"data: {json.dumps(obj)}\n\n"
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(body: ChatRequest, request: Request):
+    missing = get_missing_env_keys()
+    if missing:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": f"Missing environment variables: {', '.join(missing)}"},
+        )
+    if body.mode not in ("search_only", "search_and_code", "full"):
+        raise HTTPException(status_code=400, detail={"error": "invalid mode"})
+
+    ui_recipients = parse_recipient_string(body.email_recipients)
+    invalid_recipients = [email for email in ui_recipients if not is_valid_email(email)]
+    if invalid_recipients:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": f"Invalid email address: {', '.join(invalid_recipients)}"},
+        )
+
+    recipients = merge_recipients_from_prompt(body.prompt, ui_recipients) or None
+    if body.mode == "full" and not recipients:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Add your email address before sending.",
+                "hint": "Enter your email in the composer or settings panel.",
+            },
+        )
+
+    documents = [doc.model_dump() for doc in body.documents] or None
+    session_key, ip_hash = _session_context(request)
+    prompt = body.prompt.strip()
+
+    async def event_stream():
+        accumulated: list[str] = []
+        steps: list[AgentStep] = []
+        model_used = None
+        try:
+            async for ev in stream_agent(
+                prompt,
+                mode=body.mode,
+                chat_history=body.history,
+                email_recipients=recipients,
+                documents=documents,
+            ):
+                etype = ev.get("type")
+                if etype == "status":
+                    yield _sse({"type": "status", "message": ev["message"]})
+                elif etype == "token":
+                    accumulated.append(ev["text"])
+                    yield _sse({"type": "token", "text": ev["text"]})
+                elif etype == "error":
+                    yield _sse({"type": "error", "message": ev["message"]})
+                    return
+                elif etype == "complete":
+                    steps = ev["steps"]
+                    model_used = ev["model_used"]
+                    break
+
+            output = "".join(accumulated) or "Task completed."
+            result = AgentResult(output=output, steps=steps, model_used=model_used or "")
+            if body.mode == "full":
+                result = _ensure_email_delivered(result, recipients, prompt)
+
+            email_status = email_status_from_steps(result.steps)
+            safe_output = sanitize_assistant_output(result.output)
+            next_steps = suggest_next_steps(body.mode, result.steps)
+            steps_payload = [
+                {"tool": s.tool, "input": s.input, "output": s.output} for s in result.steps
+            ]
+            yield _sse(
+                {
+                    "type": "done",
+                    "output": safe_output,
+                    "model_used": result.model_used,
+                    "email_status": email_status,
+                    "next_steps": next_steps,
+                    "steps": steps_payload,
+                    "session_key": session_key[:8],
+                }
+            )
+
+            await asyncio.to_thread(
+                log_interaction,
+                session_key,
+                ip_hash,
+                redact_env_values(prompt),
+                redact_env_values(safe_output),
+                mode=body.mode,
+                model_used=result.model_used,
+                email_status=email_status,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(traceback.format_exc())
+            err = friendly_agent_error(exc)
+            yield _sse({"type": "error", "message": str(err)})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
